@@ -1,0 +1,19 @@
+{
+  "rows": 10,
+  "columns": 10,
+  "bots": 2,
+  "map_chars": {
+    "free_boot": "_",
+    "escape": "E",
+    "monster": "M",
+    "player": "P",
+    "wall": "#"
+  },
+  "flask": {
+    "debug": false,
+    "host": "127.0.0.1",
+    "port": "9000",
+    "permanent_session_seconds": 2
+  },
+  "test": false
+}

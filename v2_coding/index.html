@@ -764,6 +764,11 @@ document.getElementById('btn-run').onclick=async()=>{
   }
   if(!G) initGame();
   if(histIdx<history.length-1) renderSnapshot(history.length-1);
+  const lastOutcome=history[history.length-1]?.outcome;
+  if(lastOutcome==='wasted'||lastOutcome==='escaped'){
+    lg('Game over — click New map or ↺ Replay map to play again.','warn');
+    return;
+  }
   gameRunning=true;gamePaused=false;
   setMsg('running…','var(--muted)');
   gameTick();

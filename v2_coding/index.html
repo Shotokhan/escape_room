@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Escape Room v2</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/dracula.min.css">
+<style>
+:root{
+  --bg:#0e0e12;--bg2:#16161c;--bg3:#1e1e28;--border:#2a2a3a;
+  --text:#cdd6f4;--muted:#6c7086;--accent:#89b4fa;--green:#a6e3a1;
+  --red:#f38ba8;--yellow:#f9e2af;
+  --font-mono:'Fira Code','Cascadia Code','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:14px;display:flex;flex-direction:column}
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+header h1{font-size:14px;font-weight:600;color:var(--accent);letter-spacing:.06em}
+header span{font-size:11px;color:var(--muted)}
+#pyodide-status{font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);color:var(--yellow);border-color:var(--yellow);margin-left:auto;white-space:nowrap}
+#pyodide-status.ready{color:var(--green);border-color:var(--green)}
+.main{display:flex;flex:1;min-height:0;position:relative}
+
+/* ── Left pane ── */
+.pane-left{display:flex;flex-direction:column;min-width:180px;overflow:hidden}
+.editor-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 10px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-shrink:0}
+.editor-bar b{color:var(--accent);font-size:12px}
+.cm-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.CodeMirror{flex:1;height:100%!important;font-family:var(--font-mono)!important;font-size:12.5px!important;line-height:1.65!important;background:#0d0d14!important}
+.CodeMirror-scroll{height:100%}
+.CodeMirror-gutters{background:#0d0d14!important;border-right:1px solid #2a2a3a!important}
+.CodeMirror-linenumber{color:#4a4a6a!important;padding:0 8px!important}
+.CodeMirror-cursor{border-left:2px solid var(--accent)!important}
+.CodeMirror-selected{background:#1e3050!important}
+.btn-row{background:var(--bg2);border-top:1px solid var(--border);padding:7px 10px;display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+button{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 11px;cursor:pointer;font-family:var(--font-mono);font-size:11px;transition:background .12s;white-space:nowrap}
+button:hover{background:#2a2a3e}
+button:disabled{opacity:.35;cursor:default;pointer-events:none}
+button.primary{background:#1a3050;border-color:var(--accent);color:var(--accent)}
+button.primary:hover{background:#1e3a60}
+button.danger{background:#2e1420;border-color:var(--red);color:var(--red)}
+button.success{background:#0e2e18;border-color:var(--green);color:var(--green)}
+button.success:hover{background:#143820}
+#run-status{font-size:11px;color:var(--muted)}
+
+/* ── Divider ── */
+.divider{width:5px;background:var(--border);cursor:col-resize;flex-shrink:0;position:relative;transition:background .15s;z-index:5}
+.divider:hover,.divider.dragging{background:var(--accent)}
+.divider::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:32px;background:var(--muted);border-radius:2px}
+
+/* ── Right pane ── */
+.pane-right{display:flex;flex-direction:column;min-width:200px;overflow:hidden}
+.config-panel{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex-shrink:0}
+.cfg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.cfg input[type=range]{width:68px;accent-color:var(--accent);cursor:pointer}
+.cfg span{color:var(--text);min-width:20px;text-align:right;font-size:11px}
+.game-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;min-height:0;overflow:hidden}
+canvas{image-rendering:pixelated;border:1px solid var(--border);border-radius:3px;max-width:100%;max-height:100%}
+.hud{display:flex;gap:8px;font-size:11px;flex-wrap:wrap;justify-content:center}
+.hud-item{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 9px;display:flex;gap:5px;align-items:center}
+.hud-item .lbl{color:var(--muted)}
+.hud-item .val{color:var(--text);font-weight:600}
+#status-msg{font-size:13px;font-weight:600;letter-spacing:.04em;min-height:18px}
+.game-ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:7px 10px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.timeline{display:flex;align-items:center;gap:7px;padding:5px 10px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.timeline input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer;height:4px}
+.timeline .tl-label{font-size:11px;color:var(--muted);white-space:nowrap}
+.timeline .tl-val{font-size:11px;color:var(--text);min-width:28px;text-align:right}
+.log-panel{background:#0a0a0f;border-top:1px solid var(--border);height:90px;overflow-y:auto;padding:5px 10px;font-size:11px;line-height:1.75;flex-shrink:0}
+.log-panel .err{color:var(--red)}
+.log-panel .ok{color:var(--green)}
+.log-panel .info{color:var(--muted)}
+.log-panel .warn{color:var(--yellow)}
+.log-panel .py{color:#cba6f7}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◈ ESCAPE ROOM v2</h1>
+  <span>Python agent — <code>Agent.__init__(graph, escape_node)</code> · <code>Agent.next_move(player_node, monsters) → node_id</code> · use <code>print()</code> to log</span>
+  <div id="pyodide-status">loading Python…</div>
+</header>
+
+<div class="main" id="main">
+  <div class="pane-left" id="pane-left" style="width:48%">
+    <div class="editor-bar">
+      <b>agent.py</b>
+      <span style="margin-left:4px">— graph[id] = {'id','row','col','edges':[{'to','weight'}]} · return neighbour node id or player_node to wait</span>
+    </div>
+    <div class="cm-wrap" id="cm-wrap"></div>
+    <div class="btn-row">
+      <button class="primary" id="btn-load">▶ Load agent</button>
+      <button id="btn-reset">Reset code</button>
+      <button id="btn-dijkstra">Reset code (Dijkstra)</button>
+      <span id="run-status"></span>
+    </div>
+  </div>
+
+  <div class="divider" id="divider"></div>
+
+  <div class="pane-right" id="pane-right" style="flex:1">
+    <div class="config-panel">
+      <div class="cfg"><label>rows</label><input type="range" id="cfg-rows" min="5" max="35" step="2" value="19"><span id="v-rows">19</span></div>
+      <div class="cfg"><label>cols</label><input type="range" id="cfg-cols" min="5" max="51" step="2" value="27"><span id="v-cols">27</span></div>
+      <div class="cfg"><label>complexity</label><input type="range" id="cfg-cx" min="0" max="10" value="5"><span id="v-cx">5</span></div>
+      <div class="cfg"><label>monsters</label><input type="range" id="cfg-mon" min="1" max="24" value="5"><span id="v-mon">5</span></div>
+      <div class="cfg"><label>speed</label><input type="range" id="cfg-spd" min="1" max="20" value="8"><span id="v-spd">8</span></div>
+    </div>
+    <div class="game-area" id="game-area">
+      <div class="hud">
+        <div class="hud-item"><span class="lbl">step</span><span class="val" id="h-step">0</span></div>
+        <div class="hud-item"><span class="lbl">dist to exit</span><span class="val" id="h-dist">—</span></div>
+        <div class="hud-item"><span class="lbl">agent</span><span class="val" id="h-agent" style="color:var(--muted)">none</span></div>
+      </div>
+      <div id="status-msg"></div>
+      <canvas id="cv"></canvas>
+    </div>
+    <div class="game-ctrl">
+      <button id="btn-new">New map</button>
+      <button id="btn-replay">↺ Replay map</button>
+      <button class="success" id="btn-run">▶ Run</button>
+      <button id="btn-pause">⏸ Pause</button>
+      <button class="danger" id="btn-stop">■ Stop</button>
+    </div>
+    <div class="timeline">
+      <button id="btn-prev" disabled>◀</button>
+      <button id="btn-next" disabled>▶</button>
+      <span class="tl-label">history</span>
+      <input type="range" id="tl-scrub" min="0" max="0" value="0" disabled>
+      <span class="tl-val"><span id="tl-cur">0</span>&nbsp;/&nbsp;<span id="tl-max">0</span></span>
+    </div>
+    <div class="log-panel" id="log"></div>
+  </div>
+</div>
+
+<!-- CodeMirror 5 -->
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+<!-- Pyodide -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════
+const WALL=1,FREE=0,ESC=2,MON=3,PLY=4;
+const DR=[-1,1,0,0,0],DC=[0,0,-1,1,0];
+
+// ══════════════════════════════════════════════════
+// LOGGING
+// ══════════════════════════════════════════════════
+const logEl=document.getElementById('log');
+function lg(msg,cls='info'){
+  const d=document.createElement('div');
+  d.className=cls; d.textContent=msg;
+  logEl.prepend(d);
+  if(logEl.children.length>300) logEl.lastChild.remove();
+}
+// Exposed to Python so print() lands in the log panel
+function pyLog(s){ lg('[py] '+String(s).trimEnd(),'py'); }
+
+// ══════════════════════════════════════════════════
+// CODEMIRROR EDITOR
+// ══════════════════════════════════════════════════
+const cm = CodeMirror(document.getElementById('cm-wrap'), {
+  mode: 'python',
+  theme: 'dracula',
+  lineNumbers: true,
+  indentUnit: 4,
+  tabSize: 4,
+  indentWithTabs: false,
+  lineWrapping: false,
+  autofocus: true,
+  extraKeys: {
+    Tab: cm => cm.execCommand('indentMore'),
+    'Shift-Tab': cm => cm.execCommand('indentLess'),
+  }
+});
+// Make CM fill its flex container
+document.getElementById('cm-wrap').style.flex='1';
+document.getElementById('cm-wrap').style.overflow='hidden';
+setTimeout(()=>cm.refresh(),100);
+
+// ══════════════════════════════════════════════════
+// AGENT TEMPLATES
+// ══════════════════════════════════════════════════
+const CODE_EMPTY=`# ─────────────────────────────────────────────────────────────────
+#  Escape Room v2  —  implement your agent
+# ─────────────────────────────────────────────────────────────────
+#
+#  Graph structure passed to __init__:
+#    graph       : list of dicts, indexed by node id
+#                  graph[id] = {
+#                    'id'   : int        — unique node id
+#                    'row'  : int        — row in the grid
+#                    'col'  : int        — column in the grid
+#                    'edges': list of {
+#                               'to'    : int  — neighbour node id
+#                               'weight': int  — always 1
+#                             }
+#                  }
+#    escape_node : int  — node id of the exit cell
+#
+#  next_move(player_node, monsters) -> int
+#    player_node : current node id of the player
+#    monsters    : list of node ids, one per monster
+#    Must return a direct neighbour of player_node,
+#    or player_node itself to wait.
+#
+#  Use print() freely — output appears in the log panel.
+
+class Agent:
+    def __init__(self, graph, escape_node):
+        # TODO: store graph, precompute whatever you need
+        pass
+
+    def next_move(self, player_node, monsters):
+        # TODO: return next node id (neighbour or player_node to wait)
+        return player_node  # WAIT
+`;
+
+const CODE_DIJKSTRA=`# ─────────────────────────────────────────────────────────────────
+#  Sample agent — Dijkstra from player to escape, re-run each tick
+# ─────────────────────────────────────────────────────────────────
+#
+#  Graph structure:
+#    graph[id] = {
+#      'id'   : int,
+#      'row'  : int,
+#      'col'  : int,
+#      'edges': [ {'to': int, 'weight': int}, ... ]
+#    }
+#
+#  Extend to A* by changing the heap key from:
+#      dist[u] + w
+#  to:
+#      dist[u] + w + heuristic(to)
+#
+#  Manhattan distance heuristic (admissible; exact on complexity=0):
+#      h(node) = abs(graph[node]['row'] - esc_row)
+#              + abs(graph[node]['col'] - esc_col)
+# ─────────────────────────────────────────────────────────────────
+import heapq
+
+class Agent:
+    def __init__(self, graph, escape_node):
+        self.graph       = graph
+        self.escape_node = escape_node
+        self.esc_row     = graph[escape_node]['row']
+        self.esc_col     = graph[escape_node]['col']
+
+    def _dijkstra(self, start):
+        graph, goal = self.graph, self.escape_node
+        n    = len(graph)
+        dist = [float('inf')] * n
+        prev = [-1] * n
+        dist[start] = 0
+        heap = [(0, start)]   # (priority, node_id)
+        visited = 0
+
+        while heap:
+            d, u = heapq.heappop(heap)
+            if d > dist[u]:
+                continue          # stale entry — skip
+            visited += 1
+            if u == goal:
+                break
+            for edge in graph[u]['edges']:
+                v, w = edge['to'], edge['weight']
+                nd = dist[u] + w
+                if nd < dist[v]:
+                    dist[v] = nd
+                    prev[v] = u
+                    heapq.heappush(heap, (nd, v))
+
+        print(f"Dijkstra: visited {visited} nodes / {n} total")
+
+        # Reconstruct path back to the first step from start
+        if dist[goal] == float('inf'):
+            return start          # unreachable — wait
+        cur = goal
+        while prev[cur] != start and prev[cur] != -1:
+            cur = prev[cur]
+        return cur
+
+    def next_move(self, player_node, monsters):
+        return self._dijkstra(player_node)
+`;
+
+cm.setValue(CODE_EMPTY);
+document.getElementById('btn-reset').onclick   = () => { cm.setValue(CODE_EMPTY);    setStatus('',''); };
+document.getElementById('btn-dijkstra').onclick = () => { cm.setValue(CODE_DIJKSTRA); setStatus('',''); };
+
+// ══════════════════════════════════════════════════
+// PYODIDE BOOTSTRAP
+// ══════════════════════════════════════════════════
+let pyodide=null, pyAgentInstance=false;
+
+async function initPyodide(){
+  try{
+    pyodide=await loadPyodide();
+    // Redirect Python stdout → log panel
+    pyodide.globals.set('_js_log', pyLog);
+    pyodide.runPython(`
+import sys
+class _LogWriter:
+    def write(self, s):
+        if s and s.strip():
+            _js_log(s)
+    def flush(self): pass
+sys.stdout = _LogWriter()
+sys.stderr = _LogWriter()
+`);
+    document.getElementById('pyodide-status').textContent='Python ready';
+    document.getElementById('pyodide-status').classList.add('ready');
+    lg('Pyodide loaded — Python runtime ready','ok');
+  }catch(e){
+    document.getElementById('pyodide-status').textContent='Python failed';
+    lg('Pyodide load error: '+e.message,'err');
+  }
+}
+
+const pyodideReady=initPyodide();
+
+// ══════════════════════════════════════════════════
+// AGENT LOADER
+// ══════════════════════════════════════════════════
+function setStatus(msg,color){
+  const el=document.getElementById('run-status');
+  el.textContent=msg; el.style.color=color||'var(--muted)';
+}
+
+async function loadAgent(){
+  if(!pyodide){ lg('Pyodide not ready yet','warn'); return false; }
+  try{
+    pyodide.runPython(cm.getValue());
+    const ok=pyodide.runPython(
+      `callable(getattr(Agent,'__init__',None)) and callable(getattr(Agent,'next_move',None))`
+    );
+    if(!ok) throw new Error('Agent class must have __init__ and next_move');
+    setStatus('✓ loaded','var(--green)');
+    document.getElementById('h-agent').textContent='loaded';
+    document.getElementById('h-agent').style.color='var(--green)';
+    lg('Agent loaded successfully','ok');
+    return true;
+  }catch(e){
+    setStatus('✗ '+e.message,'var(--red)');
+    lg('Load error: '+e.message,'err');
+    pyAgentInstance=false;
+    document.getElementById('h-agent').textContent='error';
+    document.getElementById('h-agent').style.color='var(--red)';
+    return false;
+  }
+}
+document.getElementById('btn-load').onclick=loadAgent;
+
+// Instantiate Agent in Python, passing graph as native Python list of dicts via JSON
+function instantiateAgent(graphNodes, escapeNodeId){
+  if(!pyodide) return false;
+  try{
+    pyodide.globals.set('_graph_json', JSON.stringify(graphNodes));
+    pyodide.globals.set('_escape_node', escapeNodeId);
+    pyodide.runPython(`
+import json as _json
+_graph_py = _json.loads(_graph_json)
+_agent = Agent(_graph_py, _escape_node)
+`);
+    pyAgentInstance=true;
+    lg(`Agent instantiated — ${graphNodes.length} nodes, escape=${escapeNodeId}`,'ok');
+    return true;
+  }catch(e){
+    lg('constructor error: '+e.message,'err');
+    pyAgentInstance=false;
+    return false;
+  }
+}
+
+// Call next_move: pass JS primitives → Python, return int
+function callNextMove(playerNode, monsterNodes){
+  pyodide.globals.set('_player_node', playerNode);
+  pyodide.globals.set('_monster_nodes', pyodide.toPy(monsterNodes));
+  return pyodide.runPython(`int(_agent.next_move(_player_node, _monster_nodes))`);
+}
+
+// ══════════════════════════════════════════════════
+// MAZE GENERATION
+// ══════════════════════════════════════════════════
+function genMaze(rows,cols,cx,nMon){
+  const mat=new Uint8Array(rows*cols).fill(FREE);
+  const I=(r,c)=>r*cols+c;
+  for(let r=0;r<rows;r++){mat[I(r,0)]=WALL;mat[I(r,cols-1)]=WALL;}
+  for(let c=0;c<cols;c++){mat[I(0,c)]=WALL;mat[I(rows-1,c)]=WALL;}
+  if(cx===0){
+    // open arena
+  }else if(cx<=3){
+    const density=0.02+(cx-1)/2*0.05;
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        if(Math.random()<density) mat[I(r,c)]=WALL;
+  }else{
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        mat[I(r,c)]=WALL;
+    const visited=new Uint8Array(rows*cols);
+    function carve(r,c){
+      visited[I(r,c)]=1; mat[I(r,c)]=FREE;
+      const dirs=[[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-.5);
+      for(const[dr,dc] of dirs){
+        const nr=r+dr,nc=c+dc;
+        if(nr>0&&nr<rows-1&&nc>0&&nc<cols-1&&!visited[I(nr,nc)]){
+          mat[I(r+dr/2,c+dc/2)]=FREE; carve(nr,nc);
+        }
+      }
+    }
+    carve(1,1);
+    const extraFrac=(10-cx)/6*0.35;
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        if(mat[I(r,c)]===WALL&&Math.random()<extraFrac){
+          const h=c>1&&c<cols-2&&mat[I(r,c-1)]===FREE&&mat[I(r,c+1)]===FREE;
+          const v=r>1&&r<rows-2&&mat[I(r-1,c)]===FREE&&mat[I(r+1,c)]===FREE;
+          if(h||v) mat[I(r,c)]=FREE;
+        }
+  }
+  const bcands=[];
+  for(let c=1;c<cols-1;c++){
+    if(mat[I(1,c)]===FREE) bcands.push([0,c]);
+    if(mat[I(rows-2,c)]===FREE) bcands.push([rows-1,c]);
+  }
+  for(let r=1;r<rows-1;r++){
+    if(mat[I(r,1)]===FREE) bcands.push([r,0]);
+    if(mat[I(r,cols-2)]===FREE) bcands.push([r,cols-1]);
+  }
+  const[er,ec]=bcands[Math.floor(Math.random()*bcands.length)];
+  mat[I(er,ec)]=ESC;
+  const free=[];
+  for(let r=1;r<rows-1;r++)
+    for(let c=1;c<cols-1;c++)
+      if(mat[I(r,c)]===FREE) free.push([r,c]);
+  for(let i=free.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));[free[i],free[j]]=[free[j],free[i]];
+  }
+  let fi=0;
+  const[pr,pc]=free[fi++];
+  const monsters=[];
+  const n=Math.min(nMon,free.length-1);
+  for(let i=0;i<n;i++) monsters.push([...free[fi++]]);
+  return{mat,rows,cols,player:[pr,pc],escape:[er,ec],monsters};
+}
+
+// ══════════════════════════════════════════════════
+// GRAPH BUILDER
+// ══════════════════════════════════════════════════
+function buildGraph(mat,rows,cols){
+  const cellToNode=new Int32Array(rows*cols).fill(-1);
+  const nodes=[];
+  for(let r=0;r<rows;r++)
+    for(let c=0;c<cols;c++)
+      if(mat[r*cols+c]!==WALL){
+        cellToNode[r*cols+c]=nodes.length;
+        nodes.push({id:nodes.length,row:r,col:c,edges:[]});
+      }
+  const dr=[-1,1,0,0],dc=[0,0,-1,1];
+  for(const node of nodes)
+    for(let d=0;d<4;d++){
+      const nr=node.row+dr[d],nc=node.col+dc[d];
+      if(nr>=0&&nr<rows&&nc>=0&&nc<cols){
+        const nb=cellToNode[nr*cols+nc];
+        if(nb!==-1) node.edges.push({to:nb,weight:1});
+      }
+    }
+  return{nodes,cellToNode};
+}
+
+// ══════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════
+let history=[],histIdx=0,baseMat=null;
+function snapshotState(G,outcome=null){
+  return{player:[...G.player],monsters:G.monsters.map(m=>[...m]),outcome};
+}
+function pushSnapshot(snap){
+  history=history.slice(0,histIdx+1);
+  history.push(snap); histIdx=history.length-1; updateTimeline();
+}
+function updateTimeline(){
+  const max=Math.max(0,history.length-1);
+  const scrub=document.getElementById('tl-scrub');
+  scrub.max=max; scrub.value=histIdx; scrub.disabled=max===0;
+  document.getElementById('tl-cur').textContent=histIdx;
+  document.getElementById('tl-max').textContent=max;
+  document.getElementById('btn-prev').disabled=histIdx<=0;
+  document.getElementById('btn-next').disabled=histIdx>=max;
+}
+function rebuildMat(snap){
+  G.mat.set(baseMat);
+  G.player=[...snap.player]; G.monsters=snap.monsters.map(m=>[...m]);
+  G.mat[G.escape[0]*G.cols+G.escape[1]]=ESC;
+  for(const[mr,mc] of G.monsters) G.mat[mr*G.cols+mc]=MON;
+  G.mat[G.player[0]*G.cols+G.player[1]]=PLY;
+}
+function renderSnapshot(idx){
+  if(!G||idx<0||idx>=history.length) return;
+  histIdx=idx;
+  const snap=history[idx]; rebuildMat(snap); drawMaze(G,snap);
+  const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+  const dm=bfsDist(graph.nodes,escId);
+  const pn=cellToNode[snap.player[0]*G.cols+snap.player[1]];
+  document.getElementById('h-step').textContent=idx;
+  document.getElementById('h-dist').textContent=dm[pn]>=0?dm[pn]:'∞';
+  if(snap.outcome==='wasted') setMsg('✖  WASTED','#f38ba8');
+  else if(snap.outcome==='escaped') setMsg('★  ESCAPED!','#a6e3a1');
+  else setMsg('','');
+  updateTimeline();
+}
+
+// ══════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+let CELL=18;
+function resizeCanvas(rows,cols){
+  const area=document.getElementById('game-area');
+  const maxW=area.clientWidth-16,maxH=area.clientHeight-60;
+  CELL=Math.max(7,Math.min(30,Math.floor(Math.min(maxW/cols,maxH/rows))));
+  cv.width=cols*CELL; cv.height=rows*CELL;
+}
+function drawMaze(G,snap){
+  const{mat,rows,cols,escape:[er,ec]}=G;
+  const player=snap?snap.player:G.player;
+  const monsters=snap?snap.monsters:G.monsters;
+  const[pr,pc]=player;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#12121a'; ctx.fillRect(0,0,cv.width,cv.height);
+  if(history.length>1){
+    const from=Math.max(0,histIdx-60);
+    for(let i=from;i<histIdx;i++){
+      const s=history[i];
+      const alpha=0.06+0.2*((i-from)/Math.min(histIdx,60));
+      ctx.fillStyle=`rgba(137,180,250,${alpha.toFixed(2)})`;
+      ctx.fillRect(s.player[1]*CELL,s.player[0]*CELL,CELL,CELL);
+    }
+  }
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const x=c*CELL,y=r*CELL,v=mat[r*cols+c];
+    if(v===WALL){
+      ctx.fillStyle='#1a1925'; ctx.fillRect(x,y,CELL,CELL);
+      const ins=Math.max(1,Math.floor(CELL*0.13));
+      ctx.fillStyle='rgba(255,255,255,0.06)';
+      ctx.fillRect(x,y,CELL,ins); ctx.fillRect(x,y,ins,CELL);
+      ctx.fillStyle='rgba(0,0,0,0.42)';
+      ctx.fillRect(x,y+CELL-ins,CELL,ins); ctx.fillRect(x+CELL-ins,y,ins,CELL);
+      ctx.fillStyle='#22203066';
+      ctx.fillRect(x+ins,y+ins,CELL-ins*2,CELL-ins*2);
+    }else{
+      ctx.fillStyle='#1c1b28'; ctx.fillRect(x,y,CELL,CELL);
+      if(CELL>=10){ctx.strokeStyle='rgba(255,255,255,0.035)';ctx.lineWidth=.5;ctx.strokeRect(x+.5,y+.5,CELL-1,CELL-1);}
+    }
+  }
+  // Escape
+  {const x=ec*CELL,y=er*CELL;
+   ctx.fillStyle='#0d2e1a';ctx.fillRect(x,y,CELL,CELL);
+   ctx.fillStyle='rgba(166,227,161,0.18)';ctx.fillRect(x,y,CELL,CELL);
+   const cx2=x+CELL/2,cy2=y+CELL/2,rr=CELL/2-1;
+   ctx.fillStyle='rgba(166,227,161,0.4)';ctx.beginPath();ctx.arc(cx2,cy2,rr,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='rgba(166,227,161,0.9)';ctx.beginPath();ctx.arc(cx2,cy2,rr*.5,0,Math.PI*2);ctx.fill();
+   if(CELL>=11){ctx.fillStyle='#0a2010';ctx.font=`bold ${Math.max(8,CELL-5)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('E',cx2,cy2+1);}
+  }
+  // Monsters
+  for(const[mr,mc] of monsters){
+    const cx2=mc*CELL+CELL/2,cy2=mr*CELL+CELL/2,rr=Math.max(3,CELL/2-1);
+    ctx.strokeStyle='rgba(243,139,168,0.4)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx2,cy2,rr+2,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#f38ba8';ctx.beginPath();ctx.arc(cx2,cy2,rr,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(80,10,20,0.55)';ctx.beginPath();ctx.arc(cx2,cy2,rr*.45,0,Math.PI*2);ctx.fill();
+    if(CELL>=11){ctx.fillStyle='#2a0810';ctx.font=`bold ${Math.max(7,CELL-6)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('M',cx2,cy2+1);}
+  }
+  // Player
+  {const isLive=(histIdx===history.length-1)||history.length===0;
+   const cx2=pc*CELL+CELL/2,cy2=pr*CELL+CELL/2,rr=Math.max(3,CELL/2-1);
+   ctx.strokeStyle=isLive?'rgba(137,180,250,0.45)':'rgba(96,112,160,0.3)';ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(cx2,cy2,rr+2,0,Math.PI*2);ctx.stroke();
+   ctx.fillStyle=isLive?'#89b4fa':'#6070a0';ctx.beginPath();ctx.arc(cx2,cy2,rr,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='rgba(10,20,50,0.55)';ctx.beginPath();ctx.arc(cx2,cy2,rr*.45,0,Math.PI*2);ctx.fill();
+   if(CELL>=11){ctx.fillStyle='#05102a';ctx.font=`bold ${Math.max(7,CELL-6)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('P',cx2,cy2+1);}
+  }
+}
+
+// ══════════════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════════════
+let G=null,graph=null,cellToNode=null;
+let savedSeed=null; // { mat, rows, cols, player, escape, monsters } — frozen initial state
+let gameRunning=false,gamePaused=false,gameTimer=null;
+
+function getCfg(){
+  return{
+    rows:parseInt(document.getElementById('cfg-rows').value),
+    cols:parseInt(document.getElementById('cfg-cols').value),
+    cx:parseInt(document.getElementById('cfg-cx').value),
+    mon:parseInt(document.getElementById('cfg-mon').value),
+    spd:parseInt(document.getElementById('cfg-spd').value),
+  };
+}
+function bfsDist(nodes,startId){
+  const dist=new Int32Array(nodes.length).fill(-1);
+  const q=[startId];dist[startId]=0;let head=0;
+  while(head<q.length){const u=q[head++];for(const{to}of nodes[u].edges)if(dist[to]===-1){dist[to]=dist[u]+1;q.push(to);}}
+  return dist;
+}
+function setMsg(msg,color){const el=document.getElementById('status-msg');el.textContent=msg;el.style.color=color||'';}
+
+function initGame(seed=null){
+  gameRunning=false;gamePaused=false;
+  if(gameTimer){clearTimeout(gameTimer);gameTimer=null;}
+  const cfg=getCfg();
+  if(seed){
+    // Restore from saved seed: deep-clone everything
+    G={
+      mat: new Uint8Array(seed.mat),
+      rows: seed.rows, cols: seed.cols,
+      player: [...seed.player],
+      escape: [...seed.escape],
+      monsters: seed.monsters.map(m=>[...m])
+    };
+  } else {
+    G=genMaze(cfg.rows,cfg.cols,cfg.cx,cfg.mon);
+    // Save this map as the replayable seed (before we stamp PLY/MON onto mat)
+    savedSeed={
+      mat: new Uint8Array(G.mat),   // walls + ESC only at this point
+      rows: G.rows, cols: G.cols,
+      player: [...G.player],
+      escape: [...G.escape],
+      monsters: G.monsters.map(m=>[...m])
+    };
+  }
+  baseMat=new Uint8Array(G.mat);
+  G.mat[G.player[0]*G.cols+G.player[1]]=PLY;
+  for(const[mr,mc] of G.monsters) G.mat[mr*G.cols+mc]=MON;
+  const g=buildGraph(G.mat,G.rows,G.cols);
+  graph=g; cellToNode=g.cellToNode;
+  resizeCanvas(G.rows,G.cols);
+  history=[];histIdx=-1;pushSnapshot(snapshotState(G));
+  const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+  const dm=bfsDist(graph.nodes,escId);
+  const plId=cellToNode[G.player[0]*G.cols+G.player[1]];
+  document.getElementById('h-step').textContent='0';
+  document.getElementById('h-dist').textContent=dm[plId]>=0?dm[plId]:'∞';
+  setMsg('','');
+  pyAgentInstance=false;
+  // Re-instantiate on new map if a class is already loaded in Python
+  if(pyodide){
+    try{
+      const has=pyodide.runPython(`'Agent' in dir() and callable(getattr(Agent,'next_move',None))`);
+      if(has) instantiateAgent(graph.nodes,escId);
+    }catch(_){}
+  }
+  lg(`Map ${G.rows}×${G.cols}, ${G.monsters.length} monsters, ${graph.nodes.length} nodes`,'ok');
+  drawMaze(G,history[0]);
+}
+
+async function gameTick(){
+  if(!gameRunning||gamePaused||!G) return;
+  const{rows,cols,escape:[er,ec]}=G;
+  function legalCell(r,c){return r>=0&&r<rows&&c>=0&&c<cols&&G.mat[r*cols+c]!==WALL;}
+  const plNode=cellToNode[G.player[0]*G.cols+G.player[1]];
+  const monNodes=G.monsters.map(([mr,mc])=>cellToNode[mr*G.cols+mc]);
+  let nextNode=plNode;
+  if(pyAgentInstance){
+    try{
+      const raw=callNextMove(plNode,monNodes);
+      if(typeof raw==='number'&&raw>=0&&raw<graph.nodes.length) nextNode=raw;
+      else lg('next_move() returned invalid node id: '+raw,'warn');
+    }catch(e){lg('next_move error: '+e.message,'err');gameRunning=false;setMsg('agent error','var(--red)');return;}
+  }
+  if(nextNode!==plNode&&!graph.nodes[plNode].edges.some(e=>e.to===nextNode)){
+    lg(`Invalid move: node ${nextNode} not a neighbour of ${plNode}. Staying.`,'warn');
+    nextNode=plNode;
+  }
+  const{row:pr,col:pc}=graph.nodes[plNode];
+  const{row:nr,col:nc}=graph.nodes[nextNode];
+  G.mat[pr*cols+pc]=FREE; G.player=[nr,nc]; G.mat[nr*cols+nc]=PLY;
+  // Death: player stepped onto monster
+  for(const[mr,mc] of G.monsters){
+    if(mr===nr&&mc===nc){
+      const snap=snapshotState(G,'wasted');pushSnapshot(snap);rebuildMat(snap);drawMaze(G,snap);
+      setMsg('✖  WASTED (stepped on monster)','#f38ba8');
+      lg(`Killed at step ${histIdx} — player walked into monster`,'err');
+      gameRunning=false;return;
+    }
+  }
+  // Win
+  if(nr===er&&nc===ec){
+    const snap=snapshotState(G,'escaped');pushSnapshot(snap);rebuildMat(snap);drawMaze(G,snap);
+    setMsg('★  ESCAPED!','#a6e3a1');lg(`Escaped in ${histIdx} steps`,'ok');
+    gameRunning=false;return;
+  }
+  // Move monsters
+  for(let i=0;i<G.monsters.length;i++){
+    const[mr,mc]=G.monsters[i];
+    const mvs=[];
+    for(let d=0;d<5;d++){
+      const nmr=mr+DR[d],nmc=mc+DC[d];
+      if(legalCell(nmr,nmc)&&!(nmr===er&&nmc===ec)) mvs.push([nmr,nmc]);
+    }
+    if(!mvs.length) continue;
+    G.mat[mr*cols+mc]=FREE;
+    const[nmr,nmc]=mvs[Math.floor(Math.random()*mvs.length)];
+    G.monsters[i]=[nmr,nmc]; G.mat[nmr*cols+nmc]=MON;
+  }
+  // Death: monster stepped onto player
+  for(const[mr,mc] of G.monsters){
+    if(mr===G.player[0]&&mc===G.player[1]){
+      const snap=snapshotState(G,'wasted');pushSnapshot(snap);rebuildMat(snap);drawMaze(G,snap);
+      setMsg('✖  WASTED (monster caught player)','#f38ba8');
+      lg(`Killed at step ${histIdx} — monster stepped on player`,'err');
+      gameRunning=false;return;
+    }
+  }
+  const snap=snapshotState(G);pushSnapshot(snap);rebuildMat(snap);
+  const escId=cellToNode[er*cols+ec];
+  const dm=bfsDist(graph.nodes,escId);
+  const newPl=cellToNode[G.player[0]*G.cols+G.player[1]];
+  document.getElementById('h-step').textContent=histIdx;
+  document.getElementById('h-dist').textContent=dm[newPl]>=0?dm[newPl]:'∞';
+  drawMaze(G,snap);
+  gameTimer=setTimeout(gameTick,Math.max(25,580-getCfg().spd*27));
+}
+
+// ══════════════════════════════════════════════════
+// TIMELINE
+// ══════════════════════════════════════════════════
+document.getElementById('btn-prev').onclick=()=>{if(histIdx>0)renderSnapshot(histIdx-1);};
+document.getElementById('btn-next').onclick=()=>{if(histIdx<history.length-1)renderSnapshot(histIdx+1);};
+document.getElementById('tl-scrub').oninput=function(){renderSnapshot(parseInt(this.value));};
+
+// ══════════════════════════════════════════════════
+// CONFIG SLIDERS
+// ══════════════════════════════════════════════════
+[['cfg-rows','v-rows'],['cfg-cols','v-cols'],['cfg-cx','v-cx'],['cfg-mon','v-mon'],['cfg-spd','v-spd']].forEach(([id,vid])=>{
+  const sl=document.getElementById(id),sp=document.getElementById(vid);
+  sp.textContent=sl.value; sl.oninput=()=>sp.textContent=sl.value;
+});
+
+// ══════════════════════════════════════════════════
+// GAME BUTTONS
+// ══════════════════════════════════════════════════
+document.getElementById('btn-new').onclick=()=>initGame();
+document.getElementById('btn-replay').onclick=()=>{ if(savedSeed) initGame(savedSeed); else initGame(); };
+
+document.getElementById('btn-run').onclick=async()=>{
+  await pyodideReady;
+  if(!pyodide){lg('Pyodide not ready','warn');return;}
+  if(!pyAgentInstance){
+    const ok=await loadAgent();
+    if(!ok) return;
+    if(G){
+      const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+      if(!instantiateAgent(graph.nodes,escId)) return;
+    }
+  }
+  if(!G) initGame();
+  if(histIdx<history.length-1) renderSnapshot(history.length-1);
+  gameRunning=true;gamePaused=false;
+  setMsg('running…','var(--muted)');
+  gameTick();
+};
+document.getElementById('btn-pause').onclick=()=>{
+  if(!gameRunning) return;
+  gamePaused=!gamePaused;
+  setMsg(gamePaused?'paused':'running…','var(--muted)');
+  if(!gamePaused) gameTick();
+};
+document.getElementById('btn-stop').onclick=()=>{
+  gameRunning=false;gamePaused=false;
+  if(gameTimer){clearTimeout(gameTimer);gameTimer=null;}
+  setMsg('stopped','var(--muted)');
+};
+
+// ══════════════════════════════════════════════════
+// RESIZABLE DIVIDER
+// ══════════════════════════════════════════════════
+const divider=document.getElementById('divider');
+const paneLeft=document.getElementById('pane-left');
+const mainEl=document.getElementById('main');
+let dragging=false,startX=0,startW=0;
+divider.addEventListener('mousedown',e=>{
+  dragging=true;startX=e.clientX;
+  startW=paneLeft.getBoundingClientRect().width;
+  divider.classList.add('dragging');
+  document.body.style.cursor='col-resize';
+  document.body.style.userSelect='none';
+});
+document.addEventListener('mousemove',e=>{
+  if(!dragging) return;
+  const totalW=mainEl.getBoundingClientRect().width;
+  let newW=startW+(e.clientX-startX);
+  newW=Math.max(180,Math.min(totalW-205,newW));
+  paneLeft.style.width=newW+'px';paneLeft.style.flex='none';
+  if(G){resizeCanvas(G.rows,G.cols);drawMaze(G,history[histIdx]);}
+});
+document.addEventListener('mouseup',()=>{
+  if(!dragging) return;
+  dragging=false;divider.classList.remove('dragging');
+  document.body.style.cursor='';document.body.style.userSelect='';
+});
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+pyodideReady.then(()=>{
+  initGame();
+  lg('Python ready — write your agent, click ▶ Load agent, then ▶ Run.','ok');
+  lg('"Reset code (Dijkstra)" gives a working heapq starter with print() demo.','info');
+});
+// Refresh CM layout after fonts settle
+window.addEventListener('load',()=>setTimeout(()=>cm.refresh(),200));
+</script>
+</body>
+</html>

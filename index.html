@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape Room — Challenges</title>
+<style>
+:root{--bg:#0e0e12;--bg2:#16161c;--border:#2a2a3a;--text:#cdd6f4;--muted:#6c7086;--accent:#89b4fa;--green:#a6e3a1;--font-mono:'Fira Code','Cascadia Code','Consolas',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+h1{font-size:22px;font-weight:600;color:var(--accent);letter-spacing:.06em;margin-bottom:.4rem}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:2.5rem}
+.cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:520px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.4rem;text-decoration:none;color:var(--text);transition:border-color .15s}
+.card:hover{border-color:var(--accent)}
+.card-header{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.card-title{font-size:15px;font-weight:600;color:var(--accent)}
+.badge{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);color:var(--muted)}
+.badge.web{border-color:#f9e2af;color:#f9e2af}
+.badge.algo{border-color:var(--green);color:var(--green)}
+.card-desc{font-size:12px;color:var(--muted);line-height:1.6}
+footer{margin-top:2.5rem;font-size:11px;color:var(--muted)}
+footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)}
+footer a:hover{color:var(--accent)}
+</style>
+</head>
+<body>
+<h1>◈ ESCAPE ROOM</h1>
+<p class="subtitle">a series of programming challenges — pick your level</p>
+<div class="cards">
+  <a class="card" href="./src/">
+    <div class="card-header">
+      <span class="card-title">v1 — Web Security</span>
+      <span class="badge web">web · scripting</span>
+    </div>
+    <p class="card-desc">Automate HTTP requests to navigate a maze before the session expires. The challenge is recognising the service behaviour and writing a fast enough client.</p>
+  </a>
+  <a class="card" href="./v2_coding/">
+    <div class="card-header">
+      <span class="card-title">v2 — Algorithmic</span>
+      <span class="badge algo">graph algorithms · Python</span>
+    </div>
+    <p class="card-desc">Implement a pathfinding agent in Python — Dijkstra, A*, weighted A* — that navigates a procedurally generated maze while avoiding randomly moving monsters. Runs entirely in the browser.</p>
+  </a>
+</div>
+<footer>
+  <a href="https://github.com/Shotokhan/escape_room" target="_blank">github.com/Shotokhan/escape_room</a>
+</footer>
+</body>
+</html>

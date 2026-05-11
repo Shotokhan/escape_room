@@ -51,10 +51,32 @@ button.success:hover{background:#143820}
 
 /* ── Right pane ── */
 .pane-right{display:flex;flex-direction:column;min-width:200px;overflow:hidden}
+
+/* ── Mode bar ── */
+.mode-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.mode-btn{flex:1;border:none;border-radius:0;padding:6px;font-size:11px;font-family:var(--font-mono);background:var(--bg2);color:var(--muted);cursor:pointer;border-right:1px solid var(--border);transition:background .12s}
+.mode-btn:last-child{border-right:none}
+.mode-btn.active{background:var(--bg3);color:var(--accent);border-bottom:2px solid var(--accent)}
+
+/* ── Generate config panel ── */
 .config-panel{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex-shrink:0}
 .cfg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
 .cfg input[type=range]{width:68px;accent-color:var(--accent);cursor:pointer}
 .cfg span{color:var(--text);min-width:20px;text-align:right;font-size:11px}
+
+/* ── Design panel ── */
+#design-panel{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;display:none;flex-direction:column;gap:8px}
+.design-size-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.step-indicator{display:flex;font-size:10px;flex-shrink:0}
+.step-pip{padding:3px 9px;border:1px solid var(--border);color:var(--muted);background:var(--bg);border-right:none;white-space:nowrap}
+.step-pip:last-child{border-right:1px solid var(--border);border-radius:0 4px 4px 0}
+.step-pip:first-child{border-radius:4px 0 0 4px}
+.step-pip.active{background:var(--bg3);color:var(--accent);border-color:var(--accent)}
+.step-pip.done{color:var(--green);border-color:var(--green)}
+#des-status{font-size:11px;color:var(--yellow);min-height:16px}
+.design-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+/* ── Game area ── */
 .game-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;min-height:0;overflow:hidden}
 canvas{image-rendering:pixelated;border:1px solid var(--border);border-radius:3px;max-width:100%;max-height:100%}
 .hud{display:flex;gap:8px;font-size:11px;flex-wrap:wrap;justify-content:center}
@@ -73,6 +95,11 @@ canvas{image-rendering:pixelated;border:1px solid var(--border);border-radius:3p
 .log-panel .info{color:var(--muted)}
 .log-panel .warn{color:var(--yellow)}
 .log-panel .py{color:#cba6f7}
+/* design cursor hints */
+canvas.cur-exit   {cursor:crosshair}
+canvas.cur-player {cursor:cell}
+canvas.cur-wall   {cursor:crosshair}
+canvas.cur-monster{cursor:crosshair}
 </style>
 </head>
 <body>
@@ -101,13 +128,44 @@ canvas{image-rendering:pixelated;border:1px solid var(--border);border-radius:3p
   <div class="divider" id="divider"></div>
 
   <div class="pane-right" id="pane-right" style="flex:1">
-    <div class="config-panel">
+
+    <!-- mode toggle -->
+    <div class="mode-bar">
+      <button class="mode-btn active" id="mode-gen">⚙ Generate</button>
+      <button class="mode-btn"        id="mode-draw">✏ Design</button>
+    </div>
+
+    <!-- generate config (shown in Generate mode) -->
+    <div class="config-panel" id="gen-panel">
       <div class="cfg"><label>rows</label><input type="range" id="cfg-rows" min="5" max="40" step="1" value="19"><span id="v-rows">19</span></div>
       <div class="cfg"><label>cols</label><input type="range" id="cfg-cols" min="5" max="60" step="1" value="27"><span id="v-cols">27</span></div>
       <div class="cfg"><label>complexity</label><input type="range" id="cfg-cx" min="0" max="10" value="5"><span id="v-cx">5</span></div>
       <div class="cfg"><label>monsters</label><input type="range" id="cfg-mon" min="0" max="30" value="5"><span id="v-mon">5</span></div>
       <div class="cfg"><label>speed</label><input type="range" id="cfg-spd" min="1" max="20" value="8"><span id="v-spd">8</span></div>
     </div>
+
+    <!-- design panel (shown in Design mode) -->
+    <div id="design-panel">
+      <div class="design-size-row">
+        <div class="cfg"><label>rows</label><input type="range" id="des-rows" min="5" max="40" step="1" value="11"><span id="vd-rows">11</span></div>
+        <div class="cfg"><label>cols</label><input type="range" id="des-cols" min="5" max="60" step="1" value="15"><span id="vd-cols">15</span></div>
+        <button id="des-create">Create grid</button>
+      </div>
+      <div class="step-indicator" id="step-indicator">
+        <div class="step-pip" id="pip-exit">① Exit</div>
+        <div class="step-pip" id="pip-player">② Player</div>
+        <div class="step-pip" id="pip-walls">③ Walls</div>
+        <div class="step-pip" id="pip-monsters">④ Monsters</div>
+      </div>
+      <div id="des-status">Set size and click Create grid</div>
+      <div class="design-btns">
+        <button id="des-next" disabled>Next step →</button>
+        <button id="des-done" style="display:none">✓ Done</button>
+        <button id="des-clear-walls" style="display:none">Clear walls</button>
+        <button id="des-clear-monsters" style="display:none">Clear monsters</button>
+      </div>
+    </div>
+
     <div class="game-area" id="game-area">
       <div class="hud">
         <div class="hud-item"><span class="lbl">step</span><span class="val" id="h-step">0</span></div>
@@ -158,7 +216,6 @@ function lg(msg,cls='info'){
   logEl.prepend(d);
   if(logEl.children.length>300) logEl.lastChild.remove();
 }
-// Exposed to Python so print() lands in the log panel
 function pyLog(s){ lg('[py] '+String(s).trimEnd(),'py'); }
 
 // ══════════════════════════════════════════════════
@@ -178,7 +235,6 @@ const cm = CodeMirror(document.getElementById('cm-wrap'), {
     'Shift-Tab': cm => cm.execCommand('indentLess'),
   }
 });
-// Make CM fill its flex container
 document.getElementById('cm-wrap').style.flex='1';
 document.getElementById('cm-wrap').style.overflow='hidden';
 setTimeout(()=>cm.refresh(),100);
@@ -301,7 +357,6 @@ let pyodide=null, pyAgentInstance=false;
 async function initPyodide(){
   try{
     pyodide=await loadPyodide();
-    // Redirect Python stdout → log panel
     pyodide.globals.set('_js_log', pyLog);
     pyodide.runPython(`
 import sys
@@ -356,7 +411,6 @@ async function loadAgent(){
 }
 document.getElementById('btn-load').onclick=loadAgent;
 
-// Instantiate Agent in Python, passing graph as native Python list of dicts via JSON
 function instantiateAgent(graphNodes, escapeNodeId){
   if(!pyodide) return false;
   try{
@@ -377,7 +431,6 @@ _agent = Agent(_graph_py, _escape_node)
   }
 }
 
-// Call next_move: pass JS primitives → Python, return int
 function callNextMove(playerNode, monsterNodes){
   pyodide.globals.set('_player_node', playerNode);
   pyodide.globals.set('_monster_nodes', pyodide.toPy(monsterNodes));
@@ -593,7 +646,7 @@ function drawMaze(G,snap){
 // GAME STATE
 // ══════════════════════════════════════════════════
 let G=null,graph=null,cellToNode=null;
-let savedSeed=null; // { mat, rows, cols, player, escape, monsters } — frozen initial state
+let savedSeed=null;
 let gameRunning=false,gamePaused=false,gameTimer=null;
 
 function getCfg(){
@@ -618,7 +671,6 @@ function initGame(seed=null){
   if(gameTimer){clearTimeout(gameTimer);gameTimer=null;}
   const cfg=getCfg();
   if(seed){
-    // Restore from saved seed: deep-clone everything
     G={
       mat: new Uint8Array(seed.mat),
       rows: seed.rows, cols: seed.cols,
@@ -628,9 +680,8 @@ function initGame(seed=null){
     };
   } else {
     G=genMaze(cfg.rows,cfg.cols,cfg.cx,cfg.mon);
-    // Save this map as the replayable seed (before we stamp PLY/MON onto mat)
     savedSeed={
-      mat: new Uint8Array(G.mat),   // walls + ESC only at this point
+      mat: new Uint8Array(G.mat),
       rows: G.rows, cols: G.cols,
       player: [...G.player],
       escape: [...G.escape],
@@ -651,7 +702,6 @@ function initGame(seed=null){
   document.getElementById('h-dist').textContent=dm[plId]>=0?dm[plId]:'∞';
   setMsg('','');
   pyAgentInstance=false;
-  // Re-instantiate on new map if a class is already loaded in Python
   if(pyodide){
     try{
       const has=pyodide.runPython(`'Agent' in dir() and callable(getattr(Agent,'next_move',None))`);
@@ -731,6 +781,248 @@ async function gameTick(){
 }
 
 // ══════════════════════════════════════════════════
+// DESIGN MODE
+// ══════════════════════════════════════════════════
+const STEPS=['exit','player','walls','monsters'];
+let drawMode=false,drawStep=null,drawGrid=null,drawRows=11,drawCols=15;
+let isPainting=false,paintValue=WALL;
+
+function desStatus(msg){document.getElementById('des-status').textContent=msg;}
+
+function updateStepPips(){
+  const pipMap={exit:'pip-exit',player:'pip-player',walls:'pip-walls',monsters:'pip-monsters'};
+  const cur=drawStep?STEPS.indexOf(drawStep):-1;
+  STEPS.forEach((s,i)=>{
+    const el=document.getElementById(pipMap[s]);
+    el.classList.remove('active','done');
+    if(i<cur) el.classList.add('done');
+    else if(i===cur) el.classList.add('active');
+  });
+}
+
+function updateDesignButtons(){
+  const nextBtn=document.getElementById('des-next');
+  const doneBtn=document.getElementById('des-done');
+  const cwBtn=document.getElementById('des-clear-walls');
+  const cmBtn=document.getElementById('des-clear-monsters');
+  // reset visibility
+  nextBtn.style.display='inline-block';
+  doneBtn.style.display='none';
+  cwBtn.style.display='none';
+  cmBtn.style.display='none';
+  if(!drawStep){nextBtn.disabled=true;return;}
+  if(drawStep==='exit'){
+    nextBtn.disabled=!findCell(drawGrid,drawCols,ESC);
+    nextBtn.textContent='Next → Player';
+  }else if(drawStep==='player'){
+    nextBtn.disabled=!findCell(drawGrid,drawCols,PLY);
+    nextBtn.textContent='Next → Walls';
+  }else if(drawStep==='walls'){
+    nextBtn.disabled=false;
+    nextBtn.textContent='Next → Monsters';
+    cwBtn.style.display='inline-block';
+  }else if(drawStep==='monsters'){
+    nextBtn.style.display='none';
+    doneBtn.style.display='inline-block';
+    cmBtn.style.display='inline-block';
+  }
+}
+
+function findCell(mat,cols,val){
+  for(let i=0;i<mat.length;i++) if(mat[i]===val) return[Math.floor(i/cols),i%cols];
+  return null;
+}
+function findAllCells(mat,cols,val){
+  const res=[];
+  for(let i=0;i<mat.length;i++) if(mat[i]===val) res.push([Math.floor(i/cols),i%cols]);
+  return res;
+}
+function cellFromEvent(e){
+  const rect=cv.getBoundingClientRect();
+  const c=Math.floor((e.clientX-rect.left)/CELL);
+  const r=Math.floor((e.clientY-rect.top)/CELL);
+  if(r<0||r>=drawRows||c<0||c>=drawCols) return null;
+  return[r,c];
+}
+function isBorder(r,c){return r===0||r===drawRows-1||c===0||c===drawCols-1;}
+
+// BFS reachability check
+function canReach(mat,rows,cols,sr,sc,tr,tc){
+  if(sr===tr&&sc===tc) return true;
+  const vis=new Uint8Array(rows*cols);
+  const q=[[sr,sc]]; vis[sr*cols+sc]=1;
+  while(q.length){
+    const[r,c]=q.shift();
+    for(let d=0;d<4;d++){
+      const nr=r+DR[d],nc=c+DC[d];
+      if(nr<0||nr>=rows||nc<0||nc>=cols) continue;
+      if(vis[nr*cols+nc]) continue;
+      const v=mat[nr*cols+nc];
+      if(v===WALL) continue;
+      if(nr===tr&&nc===tc) return true;
+      vis[nr*cols+nc]=1; q.push([nr,nc]);
+    }
+  }
+  return false;
+}
+
+function setCanvasCursor(){
+  cv.className='';
+  if(!drawMode||!drawStep) return;
+  const map={exit:'cur-exit',player:'cur-player',walls:'cur-wall',monsters:'cur-monster'};
+  if(map[drawStep]) cv.classList.add(map[drawStep]);
+}
+
+// Draw the design grid by reusing the existing drawMaze renderer.
+// We temporarily suppress the history trail by saving/restoring histIdx.
+function drawDesignGrid(){
+  const savedHistory=history, savedIdx=histIdx;
+  history=[]; histIdx=0;
+  const pl=findCell(drawGrid,drawCols,PLY)||[0,0];
+  const esc=findCell(drawGrid,drawCols,ESC)||[0,0];
+  const mons=findAllCells(drawGrid,drawCols,MON);
+  const fakeG={mat:drawGrid,rows:drawRows,cols:drawCols,player:pl,escape:esc,monsters:mons};
+  resizeCanvas(drawRows,drawCols);
+  drawMaze(fakeG,{player:pl,monsters:mons,outcome:null});
+  history=savedHistory; histIdx=savedIdx;
+}
+
+// ── Canvas events ──
+cv.addEventListener('mousedown',e=>{
+  if(!drawMode||!drawStep) return;
+  const cell=cellFromEvent(e); if(!cell) return;
+  const[r,c]=cell, idx=r*drawCols+c;
+
+  if(drawStep==='exit'){
+    if(!isBorder(r,c)){desStatus('⚠ Exit must be on the border');return;}
+    for(let i=0;i<drawGrid.length;i++) if(drawGrid[i]===ESC) drawGrid[i]=WALL;
+    drawGrid[idx]=ESC;
+    desStatus('Exit placed. Move it by clicking another border cell, or click Next.');
+    updateDesignButtons(); drawDesignGrid();
+
+  }else if(drawStep==='player'){
+    if(isBorder(r,c)){desStatus('⚠ Player must be inside the maze');return;}
+    if(drawGrid[idx]===WALL){desStatus('⚠ Cannot place player on a wall');return;}
+    for(let i=0;i<drawGrid.length;i++) if(drawGrid[i]===PLY) drawGrid[i]=FREE;
+    drawGrid[idx]=PLY;
+    desStatus('Player placed. Move it by clicking another cell, or click Next.');
+    updateDesignButtons(); drawDesignGrid();
+
+  }else if(drawStep==='walls'){
+    if(isBorder(r,c)) return;
+    if(drawGrid[idx]===PLY||drawGrid[idx]===ESC) return;
+    paintValue=drawGrid[idx]===WALL?FREE:WALL;
+    drawGrid[idx]=paintValue;
+    isPainting=true;
+    drawDesignGrid();
+
+  }else if(drawStep==='monsters'){
+    if(isBorder(r,c)||drawGrid[idx]===WALL||drawGrid[idx]===PLY||drawGrid[idx]===ESC) return;
+    drawGrid[idx]=drawGrid[idx]===MON?FREE:MON;
+    drawDesignGrid();
+  }
+});
+
+cv.addEventListener('mousemove',e=>{
+  if(!drawMode||drawStep!=='walls'||!isPainting) return;
+  const cell=cellFromEvent(e); if(!cell) return;
+  const[r,c]=cell; if(isBorder(r,c)) return;
+  const idx=r*drawCols+c;
+  if(drawGrid[idx]===PLY||drawGrid[idx]===ESC) return;
+  drawGrid[idx]=paintValue;
+  drawDesignGrid();
+});
+cv.addEventListener('mouseup',()=>{isPainting=false;});
+cv.addEventListener('mouseleave',()=>{isPainting=false;});
+
+// ── Design panel buttons ──
+document.getElementById('des-create').onclick=()=>{
+  drawRows=parseInt(document.getElementById('des-rows').value);
+  drawCols=parseInt(document.getElementById('des-cols').value);
+  drawGrid=new Uint8Array(drawRows*drawCols).fill(FREE);
+  for(let r=0;r<drawRows;r++)
+    for(let c=0;c<drawCols;c++)
+      if(isBorder(r,c)) drawGrid[r*drawCols+c]=WALL;
+  drawStep='exit';
+  desStatus('Click a border cell to place the Exit (E)');
+  updateStepPips(); updateDesignButtons(); setCanvasCursor();
+  drawDesignGrid();
+};
+
+document.getElementById('des-next').onclick=()=>{
+  const i=STEPS.indexOf(drawStep);
+  if(i<0||i>=STEPS.length-1) return;
+  drawStep=STEPS[i+1];
+  const msgs={
+    player:'Click an interior cell to place the Player (P)',
+    walls:'Click or drag interior cells to toggle walls. Click Next when done.',
+    monsters:'Click to place/remove Monsters (M). Click Done when finished.'
+  };
+  desStatus(msgs[drawStep]||'');
+  updateStepPips(); updateDesignButtons(); setCanvasCursor();
+};
+
+document.getElementById('des-clear-walls').onclick=()=>{
+  if(!drawGrid) return;
+  for(let i=0;i<drawGrid.length;i++){
+    const r=Math.floor(i/drawCols),c=i%drawCols;
+    if(!isBorder(r,c)&&drawGrid[i]===WALL) drawGrid[i]=FREE;
+  }
+  drawDesignGrid();
+};
+
+document.getElementById('des-clear-monsters').onclick=()=>{
+  if(!drawGrid) return;
+  for(let i=0;i<drawGrid.length;i++) if(drawGrid[i]===MON) drawGrid[i]=FREE;
+  drawDesignGrid();
+};
+
+document.getElementById('des-done').onclick=()=>{
+  const escCell=findCell(drawGrid,drawCols,ESC);
+  const plyCell=findCell(drawGrid,drawCols,PLY);
+  if(!escCell){desStatus('⚠ No exit placed');return;}
+  if(!plyCell){desStatus('⚠ No player placed');return;}
+  const[er,ec]=escCell,[pr,pc]=plyCell;
+  if(!canReach(drawGrid,drawRows,drawCols,pr,pc,er,ec)){
+    desStatus('⚠ Player cannot reach exit — remove some walls');return;
+  }
+  // Build seed mat: walls + ESC only (no PLY/MON) so rebuildMat works correctly
+  const seedMat=new Uint8Array(drawGrid);
+  for(let i=0;i<seedMat.length;i++) if(seedMat[i]===PLY||seedMat[i]===MON) seedMat[i]=FREE;
+  const monsters=findAllCells(drawGrid,drawCols,MON);
+  savedSeed={mat:seedMat,rows:drawRows,cols:drawCols,player:[pr,pc],escape:[er,ec],monsters};
+  // Exit design mode
+  drawMode=false; drawStep=null; cv.className='';
+  document.getElementById('design-panel').style.display='none';
+  document.getElementById('gen-panel').style.display='flex';
+  document.getElementById('mode-gen').classList.add('active');
+  document.getElementById('mode-draw').classList.remove('active');
+  initGame(savedSeed);
+  lg(`Custom map ${drawRows}×${drawCols} committed — use ↺ Replay to rerun`,'ok');
+};
+
+// ── Mode toggle ──
+document.getElementById('mode-gen').onclick=()=>{
+  drawMode=false; drawStep=null; cv.className='';
+  document.getElementById('mode-gen').classList.add('active');
+  document.getElementById('mode-draw').classList.remove('active');
+  document.getElementById('design-panel').style.display='none';
+  document.getElementById('gen-panel').style.display='flex';
+};
+document.getElementById('mode-draw').onclick=()=>{
+  if(gameRunning&&!gamePaused){
+    lg('Stop or pause the game before entering Design mode','warn');return;
+  }
+  drawMode=true; drawStep=null; cv.className='';
+  document.getElementById('mode-draw').classList.add('active');
+  document.getElementById('mode-gen').classList.remove('active');
+  document.getElementById('gen-panel').style.display='none';
+  document.getElementById('design-panel').style.display='flex';
+  desStatus('Set size and click Create grid');
+  updateStepPips(); updateDesignButtons();
+};
+
+// ══════════════════════════════════════════════════
 // TIMELINE
 // ══════════════════════════════════════════════════
 document.getElementById('btn-prev').onclick=()=>{if(histIdx>0)renderSnapshot(histIdx-1);};
@@ -741,6 +1033,10 @@ document.getElementById('tl-scrub').oninput=function(){renderSnapshot(parseInt(t
 // CONFIG SLIDERS
 // ══════════════════════════════════════════════════
 [['cfg-rows','v-rows'],['cfg-cols','v-cols'],['cfg-cx','v-cx'],['cfg-mon','v-mon'],['cfg-spd','v-spd']].forEach(([id,vid])=>{
+  const sl=document.getElementById(id),sp=document.getElementById(vid);
+  sp.textContent=sl.value; sl.oninput=()=>sp.textContent=sl.value;
+});
+[['des-rows','vd-rows'],['des-cols','vd-cols']].forEach(([id,vid])=>{
   const sl=document.getElementById(id),sp=document.getElementById(vid);
   sp.textContent=sl.value; sl.oninput=()=>sp.textContent=sl.value;
 });
@@ -821,7 +1117,6 @@ pyodideReady.then(()=>{
   lg('Python ready — write your agent, click ▶ Load agent, then ▶ Run.','ok');
   lg('"Reset code (Dijkstra)" gives a working heapq starter with print() demo.','info');
 });
-// Refresh CM layout after fonts settle
 window.addEventListener('load',()=>setTimeout(()=>cm.refresh(),200));
 </script>
 </body>

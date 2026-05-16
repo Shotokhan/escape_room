@@ -21,6 +21,10 @@ h1{font-size:22px;font-weight:600;color:var(--accent);letter-spacing:.06em;margi
 .badge.web{border-color:#f9e2af;color:#f9e2af}
 .badge.algo{border-color:var(--green);color:var(--green)}
 .badge.game{border-color:var(--orange);color:var(--orange)}
+.card.arena{border-color:var(--border)}
+.card.arena:hover{border-color:var(--purple)}
+.card.arena .card-title{color:var(--purple)}
+.badge.arena-badge{border-color:var(--purple);color:var(--purple)}
 .card-desc{font-size:12px;color:var(--muted);line-height:1.6}
 footer{margin-top:2.5rem;font-size:11px;color:var(--muted)}
 footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)}
@@ -51,6 +55,13 @@ footer a:hover{color:var(--accent)}
       <span class="badge game">game theory · minimax · Python</span>
     </div>
     <p class="card-desc">You and the Monster take turns removing 1–3 coins from piles of cursed gold. Whoever takes the last coin triggers the trap and dies. Implement the Monster's optimal strategy using minimax — then try to beat it.</p>
+  </a>
+  <a class="card arena" href="./chess_arena/">
+    <div class="card-header">
+      <span class="card-title">♞ Chess Arena — Multi-Agent</span>
+      <span class="badge arena-badge">multi-agent · pathfinding · Python</span>
+    </div>
+    <p class="card-desc">Knight-move maze escape. Write a Python agent that navigates as a chess knight, avoids or eliminates rivals, and reaches the exit first. Pit multiple agents against each other — and against the bots.</p>
   </a>
 </div>
 <footer>

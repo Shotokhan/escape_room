@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chess Arena</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/dracula.min.css">
+<style>
+:root{
+  --bg:#0e0e12;--bg2:#16161c;--bg3:#1e1e28;--border:#2a2a3a;
+  --text:#cdd6f4;--muted:#6c7086;--accent:#89b4fa;--green:#a6e3a1;
+  --red:#f38ba8;--yellow:#f9e2af;--orange:#fab387;--purple:#cba6f7;
+  --font-mono:'Fira Code','Cascadia Code','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:13px;display:flex;flex-direction:column}
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:600;color:var(--accent);letter-spacing:.05em}
+#py-status{font-size:11px;padding:2px 9px;border-radius:4px;border:1px solid var(--yellow);color:var(--yellow);margin-left:auto;white-space:nowrap}
+#py-status.ready{color:var(--green);border-color:var(--green)}
+.main{display:flex;flex:1;min-height:0}
+.left-pane{width:260px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden}
+.section{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+.section-title{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.cfg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.cfg label{min-width:110px}
+.cfg input[type=range]{flex:1;accent-color:var(--accent)}
+.cfg span.val{color:var(--text);min-width:22px;text-align:right;font-size:11px}
+button{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 11px;cursor:pointer;font-family:var(--font-mono);font-size:11px;transition:background .12s;white-space:nowrap}
+button:hover:not(:disabled){background:#2a2a3e}
+button:disabled{opacity:.35;cursor:default;pointer-events:none}
+button.primary{background:#1a3050;border-color:var(--accent);color:var(--accent)}
+button.success{background:#0e2e18;border-color:var(--green);color:var(--green)}
+button.danger{background:#2e1420;border-color:var(--red);color:var(--red)}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap}
+.turn-bar{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+#turn-label{font-size:11px;font-weight:600;min-width:80px}
+#timer-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+#timer-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .1s linear}
+.player-list{display:flex;flex-direction:column;gap:3px;overflow-y:auto;max-height:120px}
+.pe{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg)}
+.pe .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pe .pname{flex:1}
+.pe .pst{font-size:10px;color:var(--muted)}
+.pe.escaped .pst{color:var(--yellow)}
+.pe.dead .pst{color:var(--red)}
+.pe.alive .pst{color:var(--green)}
+.log-panel{flex:1;overflow-y:auto;padding:5px 10px;font-size:11px;line-height:1.7;background:#0a0a0f;min-height:0}
+.log-panel .ok{color:var(--green)}.log-panel .err{color:var(--red)}
+.log-panel .info{color:var(--muted)}.log-panel .warn{color:var(--yellow)}
+.log-panel .ev{color:var(--accent)}.log-panel .kill{color:var(--orange)}.log-panel .py{color:var(--purple)}
+.right-pane{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.tab-bar{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab-btn{flex:1;padding:7px 10px;font-size:12px;font-family:var(--font-mono);background:none;border:none;border-right:1px solid var(--border);color:var(--muted);cursor:pointer;transition:background .12s}
+.tab-btn:last-child{border-right:none}
+.tab-btn.active{background:var(--bg3);color:var(--accent);border-bottom:2px solid var(--accent)}
+.tab-btn:hover:not(.active){background:var(--bg3)}
+.tab-content{flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden}
+.tab-content.active{display:flex}
+.map-mode-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.map-mode-btn{flex:1;padding:5px;font-size:11px;font-family:var(--font-mono);background:var(--bg2);color:var(--muted);border:none;border-right:1px solid var(--border);cursor:pointer}
+.map-mode-btn:last-child{border-right:none}
+.map-mode-btn.active{background:var(--bg3);color:var(--accent);border-bottom:2px solid var(--accent)}
+.map-mode-btn:hover:not(.active){background:var(--bg3)}
+.gen-bar,.des-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;font-size:11px}
+.step-pip{padding:2px 8px;border:1px solid var(--border);border-radius:3px;color:var(--muted);font-size:10px}
+.step-pip.active{color:var(--accent);border-color:var(--accent);background:var(--bg3)}
+.step-pip.done{color:var(--green);border-color:var(--green)}
+canvas.cur-exit{cursor:crosshair}
+canvas.cur-walls{cursor:crosshair}
+canvas.cur-players{cursor:cell}
+canvas.cur-monsters{cursor:crosshair}
+#des-hint{color:var(--yellow);font-size:11px}
+.map-area{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0;overflow:hidden;position:relative}
+canvas{image-rendering:pixelated;border:1px solid var(--border);border-radius:4px;max-width:100%;max-height:100%}
+#outcome-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:14px;font-weight:700;padding:4px 16px;border-radius:6px;background:rgba(14,14,18,.9);border:1px solid var(--border);pointer-events:none;display:none;white-space:nowrap}
+#scoreboard{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(14,14,18,.96);border:1px solid var(--border);border-radius:10px;padding:16px 24px;min-width:220px;display:none;flex-direction:column;gap:8px;z-index:10}
+#scoreboard h2{font-size:13px;color:var(--accent);text-align:center;letter-spacing:.05em}
+#sb-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:0 4px;line-height:1}
+#sb-close:hover{color:var(--text)}
+.sb-row{display:flex;align-items:center;gap:10px;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)}
+.sb-row:last-child{border-bottom:none}
+.sb-rank{color:var(--muted);min-width:20px}
+.sb-name{flex:1}
+.sb-pts{font-weight:700;min-width:30px;text-align:right}
+.timeline{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.timeline input[type=range]{flex:1;accent-color:var(--accent);height:4px;cursor:pointer}
+.tl-label{font-size:11px;color:var(--muted);white-space:nowrap}
+.tl-val{font-size:11px;color:var(--text);min-width:52px;text-align:right}
+.player-nav{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.player-nav button{padding:3px 10px;font-size:13px}
+#player-nav-label{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--accent)}
+#player-status-bar{padding:4px 12px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex-shrink:0}
+.editor-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 10px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-shrink:0}
+.editor-bar b{color:var(--accent);font-size:12px}
+.cm-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.CodeMirror{flex:1;height:100%!important;font-family:var(--font-mono)!important;font-size:12.5px!important;line-height:1.65!important;background:#0d0d14!important}
+.CodeMirror-scroll{height:100%}
+.CodeMirror-gutters{background:#0d0d14!important;border-right:1px solid #2a2a3a!important}
+.CodeMirror-linenumber{color:#4a4a6a!important;padding:0 8px!important}
+.CodeMirror-cursor{border-left:2px solid var(--accent)!important}
+.CodeMirror-selected{background:#1e3050!important}
+.player-btn-row{background:var(--bg2);border-top:1px solid var(--border);padding:7px 10px;display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+#load-status{font-size:11px;color:var(--muted)}
+.mode-toggle{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;flex:1}
+.mode-opt{flex:1;padding:3px 6px;font-size:10px;font-family:var(--font-mono);background:var(--bg);color:var(--muted);border:none;border-right:1px solid var(--border);cursor:pointer;transition:background .12s}
+.mode-opt:last-child{border-right:none}
+.mode-opt.active{background:#1a2a40;color:var(--accent);font-weight:600}
+.mode-opt:hover:not(.active){background:var(--bg3)}
+</style>
+</head>
+<body>
+<header>
+  <h1>♞ CHESS ARENA</h1>
+  <span style="font-size:11px;color:var(--muted)">chess knights · maze · last one standing</span>
+  <div id="py-status">loading Python…</div>
+</header>
+<div class="main">
+<div class="left-pane">
+  <div class="section">
+    <div class="section-title">Players</div>
+    <div class="cfg"><label>human players</label><input type="range" id="cfg-humans" min="0" max="6" value="2"><span class="val" id="v-humans">2</span></div>
+    <div class="cfg"><label>bots</label><input type="range" id="cfg-bots" min="0" max="6" value="2"><span class="val" id="v-bots">2</span></div>
+    <div class="cfg"><label>turn timeout (s)</label><input type="range" id="cfg-timeout" min="1" max="10" value="2"><span class="val" id="v-timeout">2</span></div>
+    <div class="cfg"><label>anim speed</label><input type="range" id="cfg-anim" min="1" max="10" value="5"><span class="val" id="v-anim">5</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Game</div>
+    <div class="btn-row">
+      <button class="primary" id="btn-new">New map</button>
+      <button id="btn-replay">↺ Replay</button>
+    </div>
+    <div class="btn-row">
+      <button class="success" id="btn-start">▶ Start</button>
+      <button class="danger" id="btn-stop">■ Stop</button>
+    </div>
+    <div class="cfg" style="margin-top:2px">
+      <label style="min-width:80px">monster AI</label>
+      <div class="mode-toggle" id="monster-mode-toggle">
+        <button class="mode-opt active" id="mode-rational" onclick="setMonsterMode('rational')">rational</button>
+        <button class="mode-opt" id="mode-greedy" onclick="setMonsterMode('greedy')">greedy</button>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Status</div>
+    <div class="player-list" id="player-list"></div>
+  </div>
+  <div class="turn-bar">
+    <div id="turn-label" style="color:var(--muted)">—</div>
+    <div id="timer-bar-wrap"><div id="timer-bar" style="width:100%"></div></div>
+  </div>
+  <div class="log-panel" id="log"></div>
+</div>
+
+<div class="right-pane">
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-map-btn" onclick="switchTab('map')">🗺 Map</button>
+    <button class="tab-btn" id="tab-players-btn" onclick="switchTab('players')">♟ Players</button>
+  </div>
+
+  <div class="tab-content active" id="tab-map" style="flex-direction:column">
+    <div class="map-mode-bar">
+      <button class="map-mode-btn active" id="map-mode-gen" onclick="setMapMode('gen')">⚙ Generate</button>
+      <button class="map-mode-btn" id="map-mode-draw" onclick="setMapMode('draw')">✏ Design</button>
+    </div>
+    <div class="gen-bar" id="gen-bar">
+      <div class="cfg" style="gap:6px"><label>rows</label><input type="range" id="cfg-rows" min="7" max="31" step="2" value="15"><span class="val" id="v-rows">15</span></div>
+      <div class="cfg" style="gap:6px"><label>cols</label><input type="range" id="cfg-cols" min="7" max="41" step="2" value="21"><span class="val" id="v-cols">21</span></div>
+      <div class="cfg" style="gap:6px"><label>complexity</label><input type="range" id="cfg-cx" min="0" max="10" value="5"><span class="val" id="v-cx">5</span></div>
+    </div>
+    <div class="des-bar" id="des-bar" style="display:none">
+      <div class="cfg" style="gap:6px"><label>rows</label><input type="range" id="des-rows" min="7" max="31" step="2" value="15"><span class="val" id="vd-rows">15</span></div>
+      <div class="cfg" style="gap:6px"><label>cols</label><input type="range" id="des-cols" min="7" max="41" step="2" value="21"><span class="val" id="vd-cols">21</span></div>
+      <button id="des-create">Create</button>
+      <div class="step-pip" id="pip-exit">① Exit</div>
+      <div class="step-pip" id="pip-walls">② Walls</div>
+      <div class="step-pip" id="pip-players">③ Players</div>
+      <div class="step-pip" id="pip-monsters">④ Monsters</div>
+      <button id="des-next" disabled>Next →</button>
+      <button id="des-done" style="display:none">✓ Done</button>
+      <button id="des-clear" style="display:none">Clear</button>
+      <span id="des-hint"></span>
+    </div>
+    <div class="map-area" id="map-area">
+      <canvas id="cv"></canvas>
+      <div id="outcome-banner"></div>
+      <div id="scoreboard">
+        <button id="sb-close" onclick="hideScoreboard()">×</button>
+        <h2>🏆 Scoreboard</h2>
+        <div id="sb-rows"></div>
+      </div>
+    </div>
+    <div class="timeline">
+      <button id="tl-prev" disabled>◀</button>
+      <button id="tl-next" disabled>▶</button>
+      <span class="tl-label">history</span>
+      <input type="range" id="tl-scrub" min="0" max="0" value="0" disabled>
+      <span class="tl-val"><span id="tl-cur">0</span> / <span id="tl-max">0</span></span>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-players" style="flex-direction:column">
+    <div class="player-nav">
+      <button id="btn-prev-player">◀</button>
+      <div id="player-nav-label">Player 0</div>
+      <button id="btn-next-player">▶</button>
+    </div>
+    <div id="player-status-bar">—</div>
+    <div class="editor-bar">
+      <b id="editor-filename">agent_0.py</b>
+      <span style="font-size:10px;margin-left:4px">— <code>Agent.__init__(graph,escape_node,player_idx)</code> · <code>next_move(state)→node_id</code></span>
+    </div>
+    <div class="cm-wrap" id="cm-wrap"></div>
+    <div class="player-btn-row">
+      <button class="primary" id="btn-load-player">▶ Load agent</button>
+      <button id="btn-reset-player">Reset code</button>
+      <button id="btn-sample-player">Reset code (A* sample)</button>
+      <span id="load-status"></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+// ── Constants ──────────────────────────────────────────────────
+const WALL=1, FREE=0, ESC=2;
+const PLAYER_COLORS=['#89b4fa','#a6e3a1','#f9e2af','#cba6f7','#94e2d5','#fab387','#89dceb'];
+const BOT_COLOR='#f38ba8';
+const KNIGHT_DELTAS=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+
+// ── Logging ────────────────────────────────────────────────────
+const logEl=document.getElementById('log');
+function lg(msg,cls='info'){
+  const d=document.createElement('div');
+  d.className=cls; d.textContent=msg;
+  logEl.prepend(d);
+  if(logEl.children.length>300) logEl.lastChild.remove();
+}
+function pyLog(s){ lg('[py] '+String(s).trimEnd(),'py'); }
+
+// ── Tab switching ──────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('tab-'+name+'-btn').classList.add('active');
+  if(name==='players') setTimeout(()=>cm.refresh(),50);
+  if(name==='map'&&G){ resizeCanvas(); render(); }
+}
+
+// ── CodeMirror ─────────────────────────────────────────────────
+const cm=CodeMirror(document.getElementById('cm-wrap'),{
+  mode:'python', theme:'dracula', lineNumbers:true,
+  indentUnit:4, tabSize:4, indentWithTabs:false, lineWrapping:false,
+  extraKeys:{Tab:cm=>cm.execCommand('indentMore'),'Shift-Tab':cm=>cm.execCommand('indentLess')}
+});
+document.getElementById('cm-wrap').style.flex='1';
+document.getElementById('cm-wrap').style.overflow='hidden';
+
+// ── Code templates ─────────────────────────────────────────────
+const CODE_EMPTY=`# Chess Arena — implement your knight agent
+#
+# Graph (knight-move edges):
+#   graph[id] = {'id','row','col','edges':[{'to','weight'},...]}
+#
+# __init__(graph, escape_node, player_idx)
+# next_move(state) -> int  (neighbour node id or current to wait)
+#   state = {
+#     'player_node'     : int,
+#     'escape_node'     : int,
+#     'others'          : [{'idx','node','is_bot'}, ...],
+#     'dist_from_escape': [int, ...]
+#   }
+
+class Agent:
+    def __init__(self, graph, escape_node, player_idx):
+        pass
+
+    def next_move(self, state):
+        return state['player_node']  # WAIT
+`;
+
+const CODE_SAMPLE=`import heapq
+
+class Agent:
+    def __init__(self, graph, escape_node, player_idx):
+        self.graph       = graph
+        self.escape_node = escape_node
+        self.player_idx  = player_idx
+        self.esc_row     = graph[escape_node]['row']
+        self.esc_col     = graph[escape_node]['col']
+
+    def _h(self, nid):
+        n = self.graph[nid]
+        return abs(n['row']-self.esc_row)+abs(n['col']-self.esc_col)
+
+    def _astar(self, start, blocked):
+        graph, goal = self.graph, self.escape_node
+        n = len(graph)
+        dist = [float('inf')]*n
+        prev = [-1]*n
+        dist[start] = 0
+        heap = [(self._h(start), 0, start)]
+        while heap:
+            f,g,u = heapq.heappop(heap)
+            if g > dist[u]: continue
+            if u == goal: break
+            for e in graph[u]['edges']:
+                v,w = e['to'],e['weight']
+                if v in blocked: continue
+                ng = dist[u]+w
+                if ng < dist[v]:
+                    dist[v]=ng; prev[v]=u
+                    heapq.heappush(heap,(ng+self._h(v),ng,v))
+        if dist[goal]==float('inf'): return start
+        cur = goal
+        while prev[cur]!=start and prev[cur]!=-1: cur=prev[cur]
+        return cur
+
+    def next_move(self, state):
+        pn = state['player_node']
+        other_nodes = {o['node'] for o in state['others']}
+        for e in self.graph[pn]['edges']:
+            if e['to'] in other_nodes:
+                print(f"Capturing at node {e['to']}!")
+                return e['to']
+        return self._astar(pn, other_nodes)
+`;
+
+// ── Bot Python code (fixed, not user-editable) ─────────────────
+const BOT_AGENT_CODE_RATIONAL=`
+class Agent:
+    AGGRO = 4
+
+    def __init__(self, graph, escape_node, player_idx):
+        self.graph       = graph
+        self.escape_node = escape_node
+        self.player_idx  = player_idx
+        self.n           = len(graph)
+        self._guard_node = None
+        # BFS from escape (no blocked nodes) to get distances for guard selection
+        self.dist_from_esc, _ = self._bfs(escape_node, set())
+
+    def _bfs(self, src, blocked):
+        """BFS from src, skipping escape cell and blocked nodes.
+        Returns (dist[], prev[])."""
+        esc  = self.escape_node
+        n    = self.n
+        dist = [-1] * n
+        prev = [-1] * n
+        dist[src] = 0
+        q = [src]; head = 0
+        while head < len(q):
+            u = q[head]; head += 1
+            for e in self.graph[u]['edges']:
+                v = e['to']
+                if v == esc or v in blocked or dist[v] != -1:
+                    continue
+                dist[v] = dist[u] + 1
+                prev[v] = u
+                q.append(v)
+        return dist, prev
+
+    def _next_hop(self, prev, src, dst):
+        cur = dst
+        while prev[cur] != src and prev[cur] != -1:
+            cur = prev[cur]
+        return cur
+
+    def _pick_guard(self, bot_nodes):
+        esc  = self.escape_node
+        dist = self.dist_from_esc
+        candidates = sorted(
+            [i for i in range(self.n)
+             if i != esc and dist[i] != -1 and 1 <= dist[i] <= 6],
+            key=lambda i: dist[i]
+        )
+        for c in candidates:
+            if c not in bot_nodes:
+                return c
+        return candidates[0] if candidates else esc
+
+    def next_move(self, state):
+        esc    = self.escape_node
+        pn     = state['player_node']
+        others = state['others']
+
+        bot_nodes   = {o['node'] for o in others if o['is_bot']}
+        human_nodes = [o['node'] for o in others if not o['is_bot']]
+
+        if self._guard_node is None or self._guard_node in bot_nodes:
+            self._guard_node = self._pick_guard(bot_nodes)
+        guard = self._guard_node
+
+        dist, prev = self._bfs(pn, bot_nodes)
+
+        def step_toward(target):
+            if dist[target] == -1:
+                return None
+            return self._next_hop(prev, pn, target)
+
+        # Cells reachable in one knight-move by any human
+        human_reach = {}
+        for hn in human_nodes:
+            for e in self.graph[hn]['edges']:
+                human_reach.setdefault(e['to'], set()).add(hn)
+
+        # Cells reachable in one knight-move by each other bot
+        bot_cover = {}
+        for bn in bot_nodes:
+            for e in self.graph[bn]['edges']:
+                bot_cover.setdefault(e['to'], set()).add(bn)
+
+        def acceptable(node):
+            threats = human_reach.get(node, set())
+            if not threats:
+                return True
+            for h in threats:
+                if not bot_cover.get(h):
+                    return False
+            return True
+
+        # 1. Direct kill — always take it
+        for e in self.graph[pn]['edges']:
+            v = e['to']
+            if v != esc and v in human_nodes:
+                return v
+
+        # 2. Aggro chase toward nearest human in range
+        best_d, best_node = self.AGGRO + 1, -1
+        for hn in human_nodes:
+            d = dist[hn]
+            if 0 <= d <= self.AGGRO and d < best_d:
+                best_d, best_node = d, hn
+        if best_node != -1:
+            s = step_toward(best_node)
+            if s is not None and acceptable(s):
+                return s
+
+        # 3. Return to guard post
+        if pn == guard:
+            return pn
+        s = step_toward(guard)
+        if s is not None and acceptable(s):
+            return s
+
+        # 4. Fallback: any acceptable move not toward escape
+        for e in self.graph[pn]['edges']:
+            v = e['to']
+            if v != esc and v not in bot_nodes and acceptable(v):
+                return v
+
+        # 5. All moves dangerous or blocked — wait
+        return pn
+`;
+
+const BOT_AGENT_CODE_GREEDY=`
+class Agent:
+    def __init__(self, graph, escape_node, player_idx):
+        self.graph       = graph
+        self.escape_node = escape_node
+        self.player_idx  = player_idx
+        self.n           = len(graph)
+
+    def _bfs(self, src, blocked):
+        """BFS from src, skipping blocked nodes (bots). Returns (dist[], prev[])."""
+        n    = self.n
+        dist = [-1] * n
+        prev = [-1] * n
+        dist[src] = 0
+        q = [src]; head = 0
+        while head < len(q):
+            u = q[head]; head += 1
+            for e in self.graph[u]['edges']:
+                v = e['to']
+                if v in blocked or dist[v] != -1:
+                    continue
+                dist[v] = dist[u] + 1
+                prev[v] = u
+                q.append(v)
+        return dist, prev
+
+    def _next_hop(self, prev, src, dst):
+        cur = dst
+        while prev[cur] != src and prev[cur] != -1:
+            cur = prev[cur]
+        return cur
+
+    def next_move(self, state):
+        pn     = state['player_node']
+        others = state['others']
+
+        bot_nodes   = {o['node'] for o in others if o['is_bot']}
+        human_nodes = [o['node'] for o in others if not o['is_bot']]
+
+        # BFS from current position, treating other bots as obstacles
+        dist, prev = self._bfs(pn, bot_nodes)
+
+        def step_toward(target):
+            if dist[target] == -1:
+                return None
+            return self._next_hop(prev, pn, target)
+
+        # 1. Direct kill — step onto a human's cell immediately
+        for e in self.graph[pn]['edges']:
+            v = e['to']
+            if v in human_nodes:
+                return v
+
+        # 2. Chase the closest human by BFS distance
+        best_d, best_target = float('inf'), -1
+        for hn in human_nodes:
+            d = dist[hn]
+            if 0 <= d < best_d:
+                best_d, best_target = d, hn
+
+        if best_target != -1:
+            s = step_toward(best_target)
+            if s is not None:
+                return s
+
+        # 3. No humans reachable — wander to any non-bot cell
+        for e in self.graph[pn]['edges']:
+            if e['to'] not in bot_nodes:
+                return e['to']
+
+        # 4. Fully blocked — wait
+        return pn
+`;
+
+// Active bot code (swapped by monster mode toggle)
+let monsterMode = 'rational';
+let BOT_AGENT_CODE = BOT_AGENT_CODE_RATIONAL;
+
+function setMonsterMode(mode) {
+  monsterMode = mode;
+  BOT_AGENT_CODE = mode === 'greedy' ? BOT_AGENT_CODE_GREEDY : BOT_AGENT_CODE_RATIONAL;
+  document.getElementById('mode-rational').classList.toggle('active', mode === 'rational');
+  document.getElementById('mode-greedy').classList.toggle('active', mode === 'greedy');
+  lg('Monster AI set to: ' + mode, 'info');
+}
+
+
+// ── Player navigator ───────────────────────────────────────────
+let currentPlayerView=0;
+let agentCodes=[];
+let agentLoaded=[];
+
+function numHumans(){ return parseInt(document.getElementById('cfg-humans').value); }
+function numBots(){ return parseInt(document.getElementById('cfg-bots').value); }
+
+function ensureAgentArrays(){
+  const h=numHumans();
+  while(agentCodes.length<h) agentCodes.push(CODE_EMPTY);
+  while(agentLoaded.length<h) agentLoaded.push(false);
+}
+
+function saveCurrentEditorCode(){
+  if(currentPlayerView<numHumans()) agentCodes[currentPlayerView]=cm.getValue();
+}
+
+function loadPlayerIntoEditor(idx){
+  ensureAgentArrays();
+  if(idx>=numHumans()){ refreshPlayerNav(); return; }
+  cm.setValue(agentCodes[idx]||CODE_EMPTY);
+  document.getElementById('player-nav-label').textContent='Player '+idx;
+  document.getElementById('editor-filename').textContent='agent_'+idx+'.py';
+  const loaded=agentLoaded[idx]||false;
+  document.getElementById('load-status').textContent=loaded?'✓ loaded':'';
+  document.getElementById('load-status').style.color=loaded?'var(--green)':'var(--muted)';
+  const p=players[idx];
+  const gs=p?(!p.alive?'dead':p.escaped?'escaped':'alive'):'—';
+  document.getElementById('player-status-bar').textContent=
+    'player '+idx+' · '+(loaded?'agent loaded':'no agent')+' · game: '+gs;
+  setTimeout(()=>cm.refresh(),20);
+}
+
+function refreshPlayerNav(){
+  ensureAgentArrays();
+  const h=numHumans();
+  if(h===0){
+    document.getElementById('player-nav-label').textContent='No human players';
+    document.getElementById('player-status-bar').textContent='Set human players > 0';
+    document.getElementById('btn-prev-player').disabled=true;
+    document.getElementById('btn-next-player').disabled=true;
+    cm.setValue('# No human players configured');
+    return;
+  }
+  if(currentPlayerView>=h) currentPlayerView=h-1;
+  document.getElementById('btn-prev-player').disabled=currentPlayerView<=0;
+  document.getElementById('btn-next-player').disabled=currentPlayerView>=h-1;
+  loadPlayerIntoEditor(currentPlayerView);
+}
+
+// ── Pyodide ────────────────────────────────────────────────────
+let pyodide=null;
+
+async function initPyodide(){
+  try{
+    pyodide=await loadPyodide();
+    pyodide.globals.set('_js_log',pyLog);
+    pyodide.runPython(`
+import sys, json as _json
+class _W:
+    def write(self,s):
+        if s and s.strip(): _js_log(s)
+    def flush(self): pass
+sys.stdout=_W(); sys.stderr=_W()
+_agent_classes={}
+_agent_instances={}
+`);
+    document.getElementById('py-status').textContent='Python ready';
+    document.getElementById('py-status').classList.add('ready');
+    lg('Python runtime ready','ok');
+  }catch(e){
+    document.getElementById('py-status').textContent='Python failed';
+    lg('Pyodide error: '+e.message,'err');
+  }
+}
+
+const pyodideReady=initPyodide();
+
+async function loadAgentForPlayer(idx){
+  if(!pyodide){ lg('Python not ready','warn'); return false; }
+  saveCurrentEditorCode();
+  const code=agentCodes[idx]||CODE_EMPTY;
+  try{
+    pyodide.globals.set('_player_code',code);
+    pyodide.globals.set('_p_idx',idx);
+    pyodide.runPython(`
+_ns={}
+exec(_player_code,_ns)
+if 'Agent' not in _ns: raise ValueError("No 'Agent' class found")
+_agent_classes[_p_idx]=_ns['Agent']
+if _p_idx in _agent_instances: del _agent_instances[_p_idx]
+`);
+    agentLoaded[idx]=true;
+    if(graph) instantiateAgentForPlayer(idx);
+    lg('Player '+idx+' agent loaded','ok');
+    return true;
+  }catch(e){
+    agentLoaded[idx]=false;
+    lg('Player '+idx+' load error: '+e.message,'err');
+    return false;
+  }
+}
+
+function instantiateAgentForPlayer(idx){
+  if(!pyodide||!agentLoaded[idx]||!graph) return;
+  try{
+    const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+    pyodide.globals.set('_g_json',JSON.stringify(graph.nodes));
+    pyodide.globals.set('_esc_id',escId);
+    pyodide.globals.set('_p_idx',idx);
+    pyodide.runPython(`
+_g=_json.loads(_g_json)
+_agent_instances[_p_idx]=_agent_classes[_p_idx](_g,_esc_id,_p_idx)
+`);
+    lg('Player '+idx+' agent instantiated','ok');
+  }catch(e){
+    lg('Player '+idx+' constructor error: '+e.message,'err');
+    agentLoaded[idx]=false;
+  }
+}
+
+function agentInstanceReady(idx){
+  if(!pyodide||!agentLoaded[idx]) return false;
+  try{ return pyodide.runPython(idx+' in _agent_instances'); }
+  catch(_){ return false; }
+}
+
+function callAgentNextMove(idx,state){
+  pyodide.globals.set('_st_json',JSON.stringify(state));
+  pyodide.globals.set('_p_idx',idx);
+  pyodide.runPython(`_mv=int(_agent_instances[_p_idx].next_move(_json.loads(_st_json)))`);
+  return pyodide.runPython(`_mv`);
+}
+
+function loadBotAgents(){
+  if(!pyodide) return;
+  try{
+    pyodide.runPython(BOT_AGENT_CODE);
+    const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+    for(const p of players.filter(q=>q.isBot)){
+      pyodide.globals.set('_g_json',JSON.stringify(graph.nodes));
+      pyodide.globals.set('_esc_id',escId);
+      pyodide.globals.set('_p_idx',p.idx);
+      pyodide.runPython(`
+_g=_json.loads(_g_json)
+_agent_classes[_p_idx]=Agent
+_agent_instances[_p_idx]=Agent(_g,_esc_id,_p_idx)
+`);
+    }
+    lg(players.filter(q=>q.isBot).length+' bot(s) instantiated','ok');
+  }catch(e){
+    lg('Bot load error: '+e.message,'err');
+  }
+}
+
+// ── Maze generation ────────────────────────────────────────────
+function genMaze(rows,cols,cx){
+  const mat=new Uint8Array(rows*cols).fill(FREE);
+  const I=(r,c)=>r*cols+c;
+  for(let r=0;r<rows;r++){ mat[I(r,0)]=WALL; mat[I(r,cols-1)]=WALL; }
+  for(let c=0;c<cols;c++){ mat[I(0,c)]=WALL; mat[I(rows-1,c)]=WALL; }
+  if(cx===0){
+    // open
+  }else if(cx<=3){
+    const d=0.02+(cx-1)/2*0.05;
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        if(Math.random()<d) mat[I(r,c)]=WALL;
+  }else{
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        mat[I(r,c)]=WALL;
+    const vis=new Uint8Array(rows*cols);
+    function carve(r,c){
+      vis[I(r,c)]=1; mat[I(r,c)]=FREE;
+      const dirs=[[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-.5);
+      for(const [dr,dc] of dirs){
+        const nr=r+dr,nc=c+dc;
+        if(nr>0&&nr<rows-1&&nc>0&&nc<cols-1&&!vis[I(nr,nc)]){
+          mat[I(r+dr/2,c+dc/2)]=FREE; carve(nr,nc);
+        }
+      }
+    }
+    carve(1,1);
+    const ef=(10-cx)/6*0.35;
+    for(let r=1;r<rows-1;r++)
+      for(let c=1;c<cols-1;c++)
+        if(mat[I(r,c)]===WALL&&Math.random()<ef){
+          const h=c>1&&c<cols-2&&mat[I(r,c-1)]===FREE&&mat[I(r,c+1)]===FREE;
+          const v=r>1&&r<rows-2&&mat[I(r-1,c)]===FREE&&mat[I(r+1,c)]===FREE;
+          if(h||v) mat[I(r,c)]=FREE;
+        }
+  }
+  const bc=[];
+  for(let c=1;c<cols-1;c++){
+    if(mat[I(1,c)]===FREE) bc.push([0,c]);
+    if(mat[I(rows-2,c)]===FREE) bc.push([rows-1,c]);
+  }
+  for(let r=1;r<rows-1;r++){
+    if(mat[I(r,1)]===FREE) bc.push([r,0]);
+    if(mat[I(r,cols-2)]===FREE) bc.push([r,cols-1]);
+  }
+  const [er,ec]=bc[Math.floor(Math.random()*bc.length)];
+  mat[I(er,ec)]=ESC;
+  return {mat,rows,cols,escape:[er,ec]};
+}
+
+// ── Knight graph ───────────────────────────────────────────────
+function buildKnightGraph(mat,rows,cols){
+  const cellToNode=new Int32Array(rows*cols).fill(-1);
+  const nodes=[];
+  for(let r=0;r<rows;r++)
+    for(let c=0;c<cols;c++)
+      if(mat[r*cols+c]!==WALL){
+        cellToNode[r*cols+c]=nodes.length;
+        nodes.push({id:nodes.length,row:r,col:c,edges:[]});
+      }
+  for(const node of nodes)
+    for(const [dr,dc] of KNIGHT_DELTAS){
+      const nr=node.row+dr,nc=node.col+dc;
+      if(nr>=0&&nr<rows&&nc>=0&&nc<cols&&mat[nr*cols+nc]!==WALL){
+        const nb=cellToNode[nr*cols+nc];
+        if(nb!==-1) node.edges.push({to:nb,weight:1});
+      }
+    }
+  return {nodes,cellToNode};
+}
+
+function bfsDist(nodes,startId){
+  const dist=new Int32Array(nodes.length).fill(-1);
+  const q=[startId]; dist[startId]=0; let head=0;
+  while(head<q.length){
+    const u=q[head++];
+    for(const {to} of nodes[u].edges)
+      if(dist[to]===-1){ dist[to]=dist[u]+1; q.push(to); }
+  }
+  return dist;
+}
+
+// ── Game state ─────────────────────────────────────────────────
+let G=null, savedSeed=null, graph=null, cellToNode=null;
+let players=[];
+let gameRunning=false;
+let distFromEsc=null;
+let escapeOrder=0;
+let stateFreq=null;   // Map: stateKey → count, for stale detection
+
+// ── History ────────────────────────────────────────────────────
+let history=[], histIdx=0;
+
+function snapshotPlayers(){
+  return players.map(p=>({
+    idx:p.idx, row:p.row, col:p.col, node:p.node,
+    alive:p.alive, escaped:p.escaped, score:p.score, isBot:p.isBot
+  }));
+}
+
+function pushSnapshot(){
+  history=history.slice(0,histIdx+1);
+  history.push(snapshotPlayers());
+  histIdx=history.length-1;
+  updateTimeline();
+}
+
+function updateTimeline(){
+  const max=Math.max(0,history.length-1);
+  const scrub=document.getElementById('tl-scrub');
+  scrub.max=max; scrub.value=histIdx; scrub.disabled=max===0;
+  document.getElementById('tl-cur').textContent=histIdx;
+  document.getElementById('tl-max').textContent=max;
+  document.getElementById('tl-prev').disabled=histIdx<=0;
+  document.getElementById('tl-next').disabled=histIdx>=max;
+}
+
+function renderSnapshot(idx){
+  if(!G||idx<0||idx>=history.length) return;
+  histIdx=idx;
+  drawMazeWithPlayers(history[idx]);
+  updateTimeline();
+}
+
+function gameStateKey(){
+  // Serialize positions of all alive, non-escaped agents in index order.
+  // Dead and escaped agents are excluded — they no longer affect the game.
+  return players
+    .filter(p => p.alive && !p.escaped)
+    .sort((a,b) => a.idx - b.idx)
+    .map(p => p.idx+':'+p.node)
+    .join('|');
+}
+
+function checkStale(){
+  const key = gameStateKey();
+  const count = (stateFreq.get(key) || 0) + 1;
+  stateFreq.set(key, count);
+  return count >= 3;
+}
+function getCfg(){
+  return{
+    rows:parseInt(document.getElementById('cfg-rows').value),
+    cols:parseInt(document.getElementById('cfg-cols').value),
+    cx:parseInt(document.getElementById('cfg-cx').value),
+    humans:numHumans(), bots_n:numBots(),
+    timeout:parseInt(document.getElementById('cfg-timeout').value),
+    anim:parseInt(document.getElementById('cfg-anim').value),
+  };
+}
+
+function spawnPlayers(mapData,initialPositions){
+  const cfg=getCfg();
+  const total=cfg.humans+cfg.bots_n;
+  if(initialPositions){
+    players=initialPositions.map(p=>({...p,alive:true,escaped:false,score:0}));
+    return;
+  }
+  const {mat,rows,cols}=mapData;
+  const I=(r,c)=>r*cols+c;
+  const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+  const escDist=bfsDist(graph.nodes,escId);
+  const free=[];
+  for(let r=1;r<rows-1;r++)
+    for(let c=1;c<cols-1;c++)
+      if(mat[I(r,c)]===FREE){
+        const nid=cellToNode[I(r,c)];
+        if(nid!==-1&&graph.nodes[nid].edges.length>0&&escDist[nid]>=0)
+          free.push([r,c]);
+      }
+  for(let i=free.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [free[i],free[j]]=[free[j],free[i]];
+  }
+  players=[];
+  for(let i=0;i<Math.min(total,free.length);i++){
+    const [r,c]=free[i];
+    const node=cellToNode[r*cols+c];
+    players.push({idx:i,row:r,col:c,node,alive:true,escaped:false,
+                  isBot:i>=cfg.humans,score:0});
+  }
+  if(players.length<total)
+    lg('Warning: only '+players.length+'/'+total+' players placed','warn');
+}
+
+// ── initGame ───────────────────────────────────────────────────
+function initGame(seedOverride){
+  gameRunning=false;
+  escapeOrder=0;
+  stateFreq=new Map();
+  history=[]; histIdx=-1;
+  hideScoreboard(); hideBanner();
+  document.getElementById('turn-label').textContent='—';
+  document.getElementById('turn-label').style.color='var(--muted)';
+
+  let mapData;
+  if(seedOverride){
+    mapData={mat:new Uint8Array(seedOverride.mat),rows:seedOverride.rows,
+             cols:seedOverride.cols,escape:[...seedOverride.escape]};
+  }else{
+    const cfg=getCfg();
+    mapData=genMaze(cfg.rows,cfg.cols,cfg.cx);
+  }
+  G=mapData;
+  const g=buildKnightGraph(G.mat,G.rows,G.cols);
+  graph=g; cellToNode=g.cellToNode;
+  const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+  distFromEsc=bfsDist(graph.nodes,escId);
+
+  if(seedOverride&&seedOverride.initialPlayers){
+    spawnPlayers(G,seedOverride.initialPlayers);
+  }else{
+    spawnPlayers(G,null);
+    savedSeed={
+      mat:new Uint8Array(G.mat), rows:G.rows, cols:G.cols,
+      escape:[...G.escape],
+      initialPlayers:players.map(p=>({
+        idx:p.idx,row:p.row,col:p.col,node:p.node,isBot:p.isBot
+      }))
+    };
+  }
+
+  for(let i=0;i<numHumans();i++)
+    if(agentLoaded[i]) instantiateAgentForPlayer(i);
+  loadBotAgents();
+
+  resizeCanvas();
+  pushSnapshot();
+  render();
+  updatePlayerList();
+  lg('Map '+G.rows+'×'+G.cols+', '+players.length+' players','ok');
+}
+
+// ── Rendering ──────────────────────────────────────────────────
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+let CELL=20;
+
+function resizeCanvas(){
+  if(!G) return;
+  const area=document.getElementById('map-area');
+  const maxW=area.clientWidth-16, maxH=area.clientHeight-16;
+  CELL=Math.max(8,Math.min(36,Math.floor(Math.min(maxW/G.cols,maxH/G.rows))));
+  cv.width=G.cols*CELL; cv.height=G.rows*CELL;
+}
+
+function drawPiece(px,py,size,color,label,isBot){
+  const r=size*0.42;
+  ctx.strokeStyle=color+'88'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(px,py,r+2,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle=isBot?'#2a0a10':'#0a1020';
+  ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=color+'44';
+  ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=color;
+  ctx.font=Math.floor(size*0.52)+'px serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('♞',px,py+1);
+  ctx.fillStyle='#fff';
+  ctx.font='bold '+Math.max(7,Math.floor(size*0.25))+'px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label,px+size*0.20,py-size*0.20);
+}
+
+function drawMazeBase(){
+  if(!G) return;
+  const {mat,rows,cols,escape:[er,ec]}=G;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#12121a'; ctx.fillRect(0,0,cv.width,cv.height);
+  for(let r=0;r<rows;r++)
+    for(let c=0;c<cols;c++){
+      const x=c*CELL,y=r*CELL,v=mat[r*cols+c];
+      if(v===WALL){
+        ctx.fillStyle='#1a1925'; ctx.fillRect(x,y,CELL,CELL);
+        const ins=Math.max(1,Math.floor(CELL*0.13));
+        ctx.fillStyle='rgba(255,255,255,0.06)';
+        ctx.fillRect(x,y,CELL,ins); ctx.fillRect(x,y,ins,CELL);
+        ctx.fillStyle='rgba(0,0,0,0.42)';
+        ctx.fillRect(x,y+CELL-ins,CELL,ins); ctx.fillRect(x+CELL-ins,y,ins,CELL);
+        ctx.fillStyle='#22203066';
+        ctx.fillRect(x+ins,y+ins,CELL-ins*2,CELL-ins*2);
+      }else{
+        ctx.fillStyle='#1c1b28'; ctx.fillRect(x,y,CELL,CELL);
+        if(CELL>=10){
+          ctx.strokeStyle='rgba(255,255,255,0.035)'; ctx.lineWidth=.5;
+          ctx.strokeRect(x+.5,y+.5,CELL-1,CELL-1);
+        }
+      }
+    }
+  // escape portal
+  const x=ec*CELL,y=er*CELL;
+  ctx.fillStyle='#0d2e1a'; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(166,227,161,0.2)'; ctx.fillRect(x,y,CELL,CELL);
+  const cx2=x+CELL/2,cy2=y+CELL/2,rr=CELL/2-1;
+  ctx.fillStyle='rgba(166,227,161,0.55)';
+  ctx.beginPath(); ctx.arc(cx2,cy2,rr,0,Math.PI*2); ctx.fill();
+  if(CELL>=12){
+    ctx.fillStyle='#0a2010';
+    ctx.font='bold '+Math.max(8,CELL-5)+'px monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('E',cx2,cy2+1);
+  }
+}
+
+function drawMazeWithPlayers(playerList,animPos){
+  drawMazeBase();
+  for(const p of playerList){
+    if(!p.alive||p.escaped) continue;
+    let pr=p.row,pc=p.col;
+    if(animPos&&animPos[p.idx]!==undefined){
+      pr=animPos[p.idx].r; pc=animPos[p.idx].c;
+    }
+    const cx2=pc*CELL+CELL/2,cy2=pr*CELL+CELL/2;
+    const color=p.isBot?BOT_COLOR:PLAYER_COLORS[p.idx%PLAYER_COLORS.length];
+    drawPiece(cx2,cy2,CELL,color,p.isBot?'M':String(p.idx),p.isBot);
+  }
+}
+
+function render(animPos){
+  drawMazeWithPlayers(players,animPos);
+}
+
+function animateMove(pidx,r0,c0,r1,c1){
+  return new Promise(resolve=>{
+    const dur=Math.max(60,420-getCfg().anim*38);
+    const t0=performance.now();
+    function frame(now){
+      const t=Math.min(1,(now-t0)/dur);
+      const e=t<.5?2*t*t:-1+(4-2*t)*t;
+      const ap={}; ap[pidx]={r:r0+(r1-r0)*e,c:c0+(c1-c0)*e};
+      render(ap);
+      if(t<1) requestAnimationFrame(frame);
+      else{ render(); resolve(); }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+function showBanner(msg,color){
+  const b=document.getElementById('outcome-banner');
+  b.textContent=msg; b.style.color=color; b.style.display='block';
+}
+function hideBanner(){ document.getElementById('outcome-banner').style.display='none'; }
+
+function showScoreboard(){
+  const rows=document.getElementById('sb-rows');
+  rows.innerHTML='';
+  const sorted=[...players].sort((a,b)=>b.score-a.score);
+  sorted.forEach((p,i)=>{
+    const color=p.isBot?BOT_COLOR:PLAYER_COLORS[p.idx%PLAYER_COLORS.length];
+    const medals=['🥇','🥈','🥉'];
+    const rank=p.score>0?(medals[i]||('#'+(i+1))):'💀';
+    const div=document.createElement('div'); div.className='sb-row';
+    div.innerHTML='<span class="sb-rank">'+rank+'</span>'+
+      '<span class="sb-name" style="color:'+color+'">'+(p.isBot?'Bot M':'Player ')+p.idx+'</span>'+
+      '<span class="sb-pts" style="color:'+(p.score>0?'var(--green)':'var(--red)')+'">'+
+      p.score+' pt'+(p.score!==1?'s':'')+'</span>';
+    rows.appendChild(div);
+  });
+  document.getElementById('scoreboard').style.display='flex';
+}
+function hideScoreboard(){ document.getElementById('scoreboard').style.display='none'; }
+
+// ── Player list UI ─────────────────────────────────────────────
+function updatePlayerList(){
+  const el=document.getElementById('player-list'); el.innerHTML='';
+  for(const p of players){
+    const color=p.isBot?BOT_COLOR:PLAYER_COLORS[p.idx%PLAYER_COLORS.length];
+    const state=p.escaped?'escaped':p.alive?'alive':'dead';
+    const div=document.createElement('div'); div.className='pe '+state;
+    div.innerHTML='<div class="dot" style="background:'+color+'"></div>'+
+      '<span class="pname">'+(p.isBot?'Bot':'P'+p.idx)+'</span>'+
+      '<span class="pst">'+state+(p.score?' · '+p.score+'pt':'')+'</span>';
+    el.appendChild(div);
+  }
+}
+
+// ── Timer ──────────────────────────────────────────────────────
+let timerIv=null;
+function startTimer(ms){
+  const bar=document.getElementById('timer-bar');
+  const t0=Date.now();
+  if(timerIv) clearInterval(timerIv);
+  bar.style.background='var(--accent)';
+  timerIv=setInterval(()=>{
+    const f=Math.max(0,1-(Date.now()-t0)/ms);
+    bar.style.width=(f*100)+'%';
+    if(f<0.3) bar.style.background='var(--red)';
+    else if(f<0.6) bar.style.background='var(--yellow)';
+    if(f<=0) clearInterval(timerIv);
+  },50);
+}
+function stopTimer(){
+  if(timerIv) clearInterval(timerIv);
+  document.getElementById('timer-bar').style.width='100%';
+  document.getElementById('timer-bar').style.background='var(--accent)';
+}
+
+// ── Game loop ──────────────────────────────────────────────────
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function gameLoop(){
+  gameRunning=true;
+  const cfg=getCfg();
+  const escId=cellToNode[G.escape[0]*G.cols+G.escape[1]];
+
+  while(gameRunning){
+    if(players.filter(p=>!p.isBot&&p.alive&&!p.escaped).length===0){
+      endGame(); return;
+    }
+
+    for(const p of players){
+      if(!gameRunning) return;
+      if(!p.alive||p.escaped) continue;
+
+      const color=p.isBot?BOT_COLOR:PLAYER_COLORS[p.idx%PLAYER_COLORS.length];
+      document.getElementById('turn-label').innerHTML=
+        '<span style="color:'+color+'">'+(p.isBot?'Bot M':'P'+p.idx)+'</span>';
+      const turnStart=Date.now();  // wall-clock when this turn began
+
+      const state={
+        player_node:p.node, escape_node:escId,
+        others:players
+          .filter(pl=>pl.idx!==p.idx&&pl.alive&&!pl.escaped)
+          .map(pl=>({idx:pl.idx,node:pl.node,is_bot:pl.isBot})),
+        dist_from_escape:Array.from(distFromEsc),
+      };
+
+      let nextNode=p.node;
+
+      if(p.isBot){
+        try{
+          nextNode=callAgentNextMove(p.idx,state);
+        }catch(e){
+          lg('Bot M'+p.idx+' error: '+e.message,'err');
+          nextNode=p.node;
+        }
+      }else{
+        if(agentLoaded[p.idx]&&!agentInstanceReady(p.idx))
+          instantiateAgentForPlayer(p.idx);
+        if(agentLoaded[p.idx]&&agentInstanceReady(p.idx)){
+          const callStart=Date.now();
+          const remaining=Math.max(500, cfg.timeout*1000-(callStart-turnStart));
+          startTimer(remaining);
+          try{
+            nextNode=await Promise.race([
+              new Promise(resolve=>{
+                try{ resolve(callAgentNextMove(p.idx,state)); }
+                catch(e){ lg('P'+p.idx+' error: '+e.message,'err'); resolve(p.node); }
+              }),
+              new Promise(resolve=>setTimeout(()=>{
+                if(gameRunning) lg('P'+p.idx+' timed out','warn');
+                resolve(p.node);
+              },remaining))
+            ]);
+          }catch(e){ nextNode=p.node; }
+          stopTimer();
+          if(!gameRunning) return;
+        }else{
+          lg('P'+p.idx+' has no agent — waiting','warn');
+        }
+      }
+
+      // Validate
+      if(nextNode!==p.node&&!graph.nodes[p.node].edges.some(e=>e.to===nextNode)){
+        lg('P'+p.idx+' invalid move — wait','warn');
+        nextNode=p.node;
+      }
+
+      // Animate
+      const nn=graph.nodes[nextNode];
+      await animateMove(p.idx,p.row,p.col,nn.row,nn.col);
+      p.node=nextNode; p.row=nn.row; p.col=nn.col;
+
+      // Kill check
+      for(const other of players){
+        if(other.idx===p.idx||!other.alive||other.escaped) continue;
+        if(other.node===p.node){
+          other.alive=false; other.score=0;
+          if(p.isBot){
+            p.score=(p.score||0)+1;
+            lg('Bot M'+p.idx+' killed '+(other.isBot?'Bot M':'P')+other.idx+'! (+1 pt)','kill');
+          }else{
+            lg('P'+p.idx+' eliminated '+(other.isBot?'Bot M':'P')+other.idx,'kill');
+          }
+        }
+      }
+
+      // Escape check (humans only)
+      if(!p.isBot&&p.node===escId&&!p.escaped){
+        p.escaped=true;
+        escapeOrder++;
+        const hc=players.filter(pl=>!pl.isBot).length;
+        const pts=Math.max(1,hc-escapeOrder+1);
+        p.score=(p.score||0)+pts;
+        lg('P'+p.idx+' escaped! (+'+pts+' pts, total '+p.score+')','ev');
+      }
+
+      // Stale detection: same full position repeated 3 times → draw
+      if(checkStale()){
+        pushSnapshot(); render(); updatePlayerList();
+        staleGame(); return;
+      }
+
+      pushSnapshot();
+      render();
+      updatePlayerList();
+      await sleep(80);
+
+      if(players.filter(q=>!q.isBot&&q.alive&&!q.escaped).length===0){
+        endGame(); return;
+      }
+    }
+  }
+  endGame();
+}
+
+function staleGame(){
+  gameRunning=false; stopTimer();
+  document.getElementById('turn-label').textContent='Stalemate';
+  document.getElementById('turn-label').style.color='var(--muted)';
+  // Players who haven't escaped yet get 0 — they were stuck.
+  // Players who already escaped keep their points.
+  // Bots keep their kill points.
+  players.filter(p=>!p.escaped).forEach(p=>{ p.score=p.score||0; });
+  pushSnapshot(); render(); updatePlayerList();
+  showBanner('⚖ STALEMATE — positions repeated 3 times','var(--yellow)');
+  showScoreboard();
+  lg('Stalemate — game state repeated 3 times. All non-escaped players score 0.','warn');
+}
+
+function endGame(){
+  gameRunning=false; stopTimer();
+  document.getElementById('turn-label').textContent='Game over';
+  document.getElementById('turn-label').style.color='var(--muted)';
+  players.filter(p=>!p.isBot&&p.alive&&!p.escaped).forEach(p=>{ p.score=p.score||0; });
+  pushSnapshot(); render(); updatePlayerList();
+  showScoreboard();
+  lg('Game over','ok');
+}
+
+// ── Design mode ────────────────────────────────────────────────
+const DES_STEPS=['exit','walls','players','monsters'];
+let drawMode=false, drawStep=null, drawGrid=null, drawRows=15, drawCols=21;
+let isPainting=false, paintValue=WALL;
+
+function isBorderCell(r,c,rows,cols){
+  return r===0||r===rows-1||c===0||c===cols-1;
+}
+function findCellVal(mat,cols,val){
+  for(let i=0;i<mat.length;i++) if(mat[i]===val) return [Math.floor(i/cols),i%cols];
+  return null;
+}
+function findAllCellVals(mat,cols,val){
+  const res=[];
+  for(let i=0;i<mat.length;i++) if(mat[i]===val) res.push([Math.floor(i/cols),i%cols]);
+  return res;
+}
+function desHint(msg){ document.getElementById('des-hint').textContent=msg; }
+
+function updateDesPips(){
+  const cur=DES_STEPS.indexOf(drawStep);
+  DES_STEPS.forEach((s,i)=>{
+    const el=document.getElementById('pip-'+s);
+    if(!el) return;
+    el.classList.remove('active','done');
+    if(i<cur) el.classList.add('done');
+    else if(i===cur) el.classList.add('active');
+  });
+}
+
+function updateDesButtons(){
+  const nx=document.getElementById('des-next');
+  const dn=document.getElementById('des-done');
+  const cl=document.getElementById('des-clear');
+  nx.style.display='inline-block'; dn.style.display='none'; cl.style.display='none';
+  if(!drawStep){ nx.disabled=true; return; }
+  const labels={exit:'Next → Walls',walls:'Next → Players',players:'Next → Monsters'};
+  if(drawStep==='exit'){
+    nx.disabled=!findCellVal(drawGrid,drawCols,ESC);
+    nx.textContent=labels.exit;
+  }else if(drawStep==='walls'){
+    nx.disabled=false; nx.textContent=labels.walls; cl.style.display='inline-block';
+  }else if(drawStep==='players'){
+    nx.disabled=false; nx.textContent=labels.players; cl.style.display='inline-block';
+  }else if(drawStep==='monsters'){
+    nx.style.display='none'; dn.style.display='inline-block'; cl.style.display='inline-block';
+  }
+}
+
+function drawDesignCanvas(){
+  const esc=findCellVal(drawGrid,drawCols,ESC)||[0,0];
+  const cleanMat=new Uint8Array(drawGrid.length);
+  for(let i=0;i<drawGrid.length;i++){
+    const v=drawGrid[i]; cleanMat[i]=(v===5||v===6)?FREE:v;
+  }
+  const sg=G, sp=players;
+  G={mat:cleanMat,rows:drawRows,cols:drawCols,escape:esc};
+  resizeCanvas(); drawMazeBase();
+  G=sg; players=sp;
+  // Draw placed humans and bots
+  const pCells=findAllCellVals(drawGrid,drawCols,5);
+  const mCells=findAllCellVals(drawGrid,drawCols,6);
+  pCells.forEach(([r,c],i)=>{
+    drawPiece(c*CELL+CELL/2,r*CELL+CELL/2,CELL,
+              PLAYER_COLORS[i%PLAYER_COLORS.length],String(i),false);
+  });
+  mCells.forEach(([r,c])=>{
+    drawPiece(c*CELL+CELL/2,r*CELL+CELL/2,CELL,BOT_COLOR,'M',true);
+  });
+}
+
+function cellFromCanvasEvent(e){
+  const rect=cv.getBoundingClientRect();
+  const c=Math.floor((e.clientX-rect.left)/CELL);
+  const r=Math.floor((e.clientY-rect.top)/CELL);
+  const rows=drawMode?drawRows:(G?G.rows:0);
+  const cols=drawMode?drawCols:(G?G.cols:0);
+  if(r<0||r>=rows||c<0||c>=cols) return null;
+  return [r,c];
+}
+
+function setCanvasCursor(){
+  cv.className='';
+  if(!drawMode||!drawStep) return;
+  const map={exit:'cur-exit',walls:'cur-walls',players:'cur-players',monsters:'cur-monsters'};
+  if(map[drawStep]) cv.classList.add(map[drawStep]);
+}
+
+cv.addEventListener('mousedown',e=>{
+  if(!drawMode||!drawStep) return;
+  const cell=cellFromCanvasEvent(e); if(!cell) return;
+  const [r,c]=cell, idx=r*drawCols+c;
+  if(drawStep==='exit'){
+    if(!isBorderCell(r,c,drawRows,drawCols)){ desHint('⚠ Must be on the border'); return; }
+    for(let i=0;i<drawGrid.length;i++) if(drawGrid[i]===ESC) drawGrid[i]=WALL;
+    drawGrid[idx]=ESC; desHint('Exit placed.'); updateDesButtons(); drawDesignCanvas();
+  }else if(drawStep==='walls'){
+    if(isBorderCell(r,c,drawRows,drawCols)||drawGrid[idx]===ESC||
+       drawGrid[idx]===5||drawGrid[idx]===6) return;
+    paintValue=drawGrid[idx]===WALL?FREE:WALL;
+    drawGrid[idx]=paintValue; isPainting=true; drawDesignCanvas();
+  }else if(drawStep==='players'){
+    if(isBorderCell(r,c,drawRows,drawCols)||drawGrid[idx]===WALL||
+       drawGrid[idx]===ESC||drawGrid[idx]===6) return;
+    drawGrid[idx]=drawGrid[idx]===5?FREE:5; drawDesignCanvas();
+  }else if(drawStep==='monsters'){
+    if(isBorderCell(r,c,drawRows,drawCols)||drawGrid[idx]===WALL||
+       drawGrid[idx]===ESC||drawGrid[idx]===5) return;
+    drawGrid[idx]=drawGrid[idx]===6?FREE:6; drawDesignCanvas();
+  }
+});
+
+cv.addEventListener('mousemove',e=>{
+  if(!drawMode||drawStep!=='walls'||!isPainting) return;
+  const cell=cellFromCanvasEvent(e); if(!cell) return;
+  const [r,c]=cell;
+  if(isBorderCell(r,c,drawRows,drawCols)) return;
+  const idx=r*drawCols+c;
+  if(drawGrid[idx]===ESC||drawGrid[idx]===5||drawGrid[idx]===6) return;
+  drawGrid[idx]=paintValue; drawDesignCanvas();
+});
+
+cv.addEventListener('mouseup',()=>{ isPainting=false; });
+cv.addEventListener('mouseleave',()=>{ isPainting=false; });
+
+function setMapMode(mode){
+  drawMode=mode==='draw';
+  document.getElementById('map-mode-gen').classList.toggle('active',mode==='gen');
+  document.getElementById('map-mode-draw').classList.toggle('active',mode==='draw');
+  document.getElementById('gen-bar').style.display=mode==='gen'?'flex':'none';
+  document.getElementById('des-bar').style.display=mode==='draw'?'flex':'none';
+  cv.className='';
+  if(mode==='draw'){
+    drawStep=null; updateDesPips(); updateDesButtons(); desHint('Set size and click Create');
+  }else if(G){
+    resizeCanvas(); render();
+  }
+}
+
+document.getElementById('des-create').onclick=()=>{
+  drawRows=parseInt(document.getElementById('des-rows').value);
+  drawCols=parseInt(document.getElementById('des-cols').value);
+  drawGrid=new Uint8Array(drawRows*drawCols).fill(FREE);
+  for(let r=0;r<drawRows;r++)
+    for(let c=0;c<drawCols;c++)
+      if(isBorderCell(r,c,drawRows,drawCols)) drawGrid[r*drawCols+c]=WALL;
+  drawStep='exit'; desHint('Click a border cell to place the Exit (E)');
+  updateDesPips(); updateDesButtons(); setCanvasCursor(); drawDesignCanvas();
+};
+
+document.getElementById('des-next').onclick=()=>{
+  const i=DES_STEPS.indexOf(drawStep);
+  if(i<DES_STEPS.length-1){
+    drawStep=DES_STEPS[i+1];
+    const hints={
+      walls:'Click/drag to toggle walls.',
+      players:'Click interior cells to place/remove human players.',
+      monsters:'Click interior cells to place/remove bots.',
+    };
+    desHint(hints[drawStep]||'');
+  }
+  updateDesPips(); updateDesButtons(); setCanvasCursor();
+};
+
+document.getElementById('des-clear').onclick=()=>{
+  if(!drawGrid) return;
+  const targetVal={walls:WALL,players:5,monsters:6}[drawStep];
+  if(targetVal===undefined) return;
+  for(let i=0;i<drawGrid.length;i++){
+    const r=Math.floor(i/drawCols),c=i%drawCols;
+    if(!isBorderCell(r,c,drawRows,drawCols)&&drawGrid[i]===targetVal) drawGrid[i]=FREE;
+  }
+  drawDesignCanvas();
+};
+
+document.getElementById('des-done').onclick=()=>{
+  const escCell=findCellVal(drawGrid,drawCols,ESC);
+  if(!escCell){ desHint('⚠ No exit placed'); return; }
+  const cleanMat=new Uint8Array(drawGrid.length);
+  for(let i=0;i<drawGrid.length;i++){
+    const v=drawGrid[i]; cleanMat[i]=(v===5||v===6)?FREE:v;
+  }
+  const pCells=findAllCellVals(drawGrid,drawCols,5);
+  const mCells=findAllCellVals(drawGrid,drawCols,6);
+  let initialPlayers=null;
+  if(pCells.length||mCells.length){
+    const tmpGraph=buildKnightGraph(cleanMat,drawRows,drawCols);
+    initialPlayers=[];
+    pCells.forEach(([r,c],i)=>{
+      const node=tmpGraph.cellToNode[r*drawCols+c];
+      if(node!==-1) initialPlayers.push({idx:i,row:r,col:c,node,isBot:false});
+    });
+    const pc=pCells.length;
+    mCells.forEach(([r,c],i)=>{
+      const node=tmpGraph.cellToNode[r*drawCols+c];
+      if(node!==-1) initialPlayers.push({idx:pc+i,row:r,col:c,node,isBot:true});
+    });
+  }
+  savedSeed={mat:cleanMat,rows:drawRows,cols:drawCols,escape:escCell,initialPlayers};
+  setMapMode('gen');
+  initGame(savedSeed);
+  lg('Custom map '+drawRows+'×'+drawCols+' committed','ok');
+};
+
+// ── Timeline controls ──────────────────────────────────────────
+document.getElementById('tl-prev').onclick=()=>{ if(histIdx>0) renderSnapshot(histIdx-1); };
+document.getElementById('tl-next').onclick=()=>{ if(histIdx<history.length-1) renderSnapshot(histIdx+1); };
+document.getElementById('tl-scrub').oninput=function(){ renderSnapshot(parseInt(this.value)); };
+
+// ── Player navigator buttons ───────────────────────────────────
+document.getElementById('btn-prev-player').onclick=()=>{
+  saveCurrentEditorCode();
+  currentPlayerView=Math.max(0,currentPlayerView-1);
+  refreshPlayerNav();
+};
+document.getElementById('btn-next-player').onclick=()=>{
+  saveCurrentEditorCode();
+  currentPlayerView=Math.min(numHumans()-1,currentPlayerView+1);
+  refreshPlayerNav();
+};
+document.getElementById('btn-reset-player').onclick=()=>{
+  agentCodes[currentPlayerView]=CODE_EMPTY;
+  cm.setValue(CODE_EMPTY);
+  agentLoaded[currentPlayerView]=false;
+  document.getElementById('load-status').textContent='';
+};
+document.getElementById('btn-sample-player').onclick=()=>{
+  agentCodes[currentPlayerView]=CODE_SAMPLE;
+  cm.setValue(CODE_SAMPLE);
+};
+document.getElementById('btn-load-player').onclick=async()=>{
+  saveCurrentEditorCode();
+  const ok=await loadAgentForPlayer(currentPlayerView);
+  document.getElementById('load-status').textContent=ok?'✓ loaded':'✗ error';
+  document.getElementById('load-status').style.color=ok?'var(--green)':'var(--red)';
+  loadPlayerIntoEditor(currentPlayerView);
+};
+
+// ── Game buttons ───────────────────────────────────────────────
+document.getElementById('btn-new').onclick=()=>initGame();
+document.getElementById('btn-replay').onclick=()=>{
+  if(savedSeed) initGame(savedSeed); else initGame();
+};
+document.getElementById('btn-start').onclick=()=>{
+  if(gameRunning){ lg('Already running','warn'); return; }
+  if(!G) initGame();
+  hideScoreboard();
+  switchTab('map');
+  gameLoop();
+};
+document.getElementById('btn-stop').onclick=()=>{
+  gameRunning=false; stopTimer();
+  document.getElementById('turn-label').textContent='Stopped';
+  document.getElementById('turn-label').style.color='var(--muted)';
+  lg('Stopped','warn');
+};
+
+// ── Sliders ────────────────────────────────────────────────────
+[['cfg-rows','v-rows'],['cfg-cols','v-cols'],['cfg-cx','v-cx'],
+ ['cfg-humans','v-humans'],['cfg-bots','v-bots'],
+ ['cfg-timeout','v-timeout'],['cfg-anim','v-anim'],
+ ['des-rows','vd-rows'],['des-cols','vd-cols']
+].forEach(([id,vid])=>{
+  const sl=document.getElementById(id), sp=document.getElementById(vid);
+  if(!sl||!sp) return;
+  sp.textContent=sl.value;
+  sl.oninput=()=>{
+    sp.textContent=sl.value;
+    if(id==='cfg-humans'){
+      ensureAgentArrays();
+      if(document.getElementById('tab-players').classList.contains('active'))
+        refreshPlayerNav();
+    }
+  };
+});
+
+window.addEventListener('resize',()=>{
+  if(G&&document.getElementById('tab-map').classList.contains('active')){
+    resizeCanvas(); render();
+  }
+});
+window.addEventListener('load',()=>setTimeout(()=>cm.refresh(),200));
+
+// ── Init ───────────────────────────────────────────────────────
+pyodideReady.then(()=>{
+  ensureAgentArrays();
+  initGame();
+  refreshPlayerNav();
+  lg('Ready. Configure players, load agents in Players tab, then ▶ Start.','ok');
+});
+</script>
+</body>
+</html>

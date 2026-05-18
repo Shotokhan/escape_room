@@ -1155,7 +1155,6 @@ async function gameLoop(){
                 catch(e){ lg('P'+p.idx+' error: '+e.message,'err'); resolve(p.node); }
               }),
               new Promise(resolve=>setTimeout(()=>{
-                if(gameRunning) lg('P'+p.idx+' timed out','warn');
                 resolve(p.node);
               },remaining))
             ]);

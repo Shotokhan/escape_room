@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Architecture Explorer — Trap Room</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg:      #080b10;
+  --bg2:     #0d1117;
+  --bg3:     #131920;
+  --border:  #1e2d3d;
+  --text:    #c9d1d9;
+  --muted:   #4a5568;
+  --accent:  #58a6ff;
+  --green:   #3fb950;
+  --orange:  #f0883e;
+  --purple:  #bc8cff;
+  --yellow:  #d29922;
+  --red:     #f85149;
+  --cyan:    #39d5c0;
+  --mono:    'JetBrains Mono', 'Space Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+header h1 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+header span { font-size: 11px; color: var(--muted); }
+
+/* ── Arch tabs ── */
+.arch-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.tab {
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .04em;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.active { background: #0d2137; border-color: var(--accent); color: var(--accent); }
+.tab[data-arch="arch2"].active { background: #1a200d; border-color: var(--green); color: var(--green); }
+.tab[data-arch="arch2"]:hover  { border-color: var(--green); color: var(--green); }
+.tab[data-arch="arch3"].active { background: #1a0d28; border-color: var(--purple); color: var(--purple); }
+.tab[data-arch="arch3"]:hover  { border-color: var(--purple); color: var(--purple); }
+
+/* ── Main layout ── */
+.main { display: flex; flex: 1; min-height: 0; }
+
+/* ── Canvas area ── */
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(88,166,255,.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(188,140,255,.03) 0%, transparent 50%);
+}
+svg#graph {
+  width: 100%; height: 100%;
+  cursor: grab;
+  user-select: none;
+}
+svg#graph:active { cursor: grabbing; }
+
+/* zoom/pan hint */
+.hint {
+  position: absolute;
+  bottom: 12px; left: 16px;
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  letter-spacing: .06em;
+}
+
+/* ── Info panel ── */
+.info-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-header .label {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.panel-header .title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.panel-header .subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.info-section { display: flex; flex-direction: column; gap: 6px; }
+.info-section .sec-title {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.info-section p {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+}
+.info-section code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--cyan);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stat {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px 10px;
+}
+.stat .sk { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+.stat .sv { font-size: 13px; font-weight: 700; }
+
+.weight-bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+.weight-bar-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.weight-bar-row .wlabel { width: 80px; color: var(--muted); flex-shrink: 0; }
+.weight-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.weight-bar-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.weight-bar-row .wval { width: 38px; text-align: right; color: var(--text); }
+
+/* ── SVG node styles ── */
+.node-group { cursor: pointer; }
+.node-box {
+  rx: 6; ry: 6;
+  stroke-width: 1.5;
+  transition: filter .15s;
+}
+.node-group:hover .node-box { filter: brightness(1.3); }
+.node-group.selected .node-box { stroke-width: 2.5; filter: brightness(1.4); }
+
+.node-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  fill: white;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.node-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: rgba(255,255,255,.5);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.edge { fill: none; stroke-width: 1.5; opacity: .55; }
+.edge-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.data-flow {
+  fill: none;
+  stroke-dasharray: 6 4;
+  animation: dash 1.2s linear infinite;
+}
+@keyframes dash { to { stroke-dashoffset: -20; } }
+
+/* ── Drill-down overlay ── */
+#drilldown {
+  position: absolute;
+  inset: 0;
+  background: rgba(8,11,16,.95);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 10;
+}
+#drilldown.open { display: flex; }
+#drilldown .dd-header {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+#drilldown .dd-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+#drilldown .dd-close {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+#drilldown .dd-close:hover { border-color: var(--red); color: var(--red); }
+#drilldown svg { max-width: 900px; width: 100%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◈ Architecture Explorer</h1>
+  <span>hover to inspect · click to drill down</span>
+  <div class="arch-tabs">
+    <button class="tab active" data-arch="arch1">Arch 1 · One-hot</button>
+    <button class="tab" data-arch="arch2">Arch 2 · Scalar</button>
+    <button class="tab" data-arch="arch3">Arch 3 · Transformer</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="canvas-wrap">
+    <svg id="graph"></svg>
+    <div class="hint">scroll to zoom · drag to pan · click node to explore</div>
+    <div id="drilldown">
+      <div class="dd-header">
+        <span class="dd-title" id="dd-title"></span>
+        <button class="dd-close" onclick="closeDrill()">✕ close</button>
+      </div>
+      <svg id="dd-svg"></svg>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <div class="panel-header">
+      <div class="label">selected component</div>
+      <div class="title" id="panel-title">—</div>
+      <div class="subtitle" id="panel-subtitle"></div>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <div class="info-section">
+        <div class="sec-title">about</div>
+        <p style="color:var(--muted)">Select a node in the diagram to see details about that component.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// DATA — architecture definitions with real weight stats
+// ════════════════════════════════════════════════════════
+
+const ARCHS = {
+
+arch1: {
+  name: "Architecture 1 — One-hot Encoding",
+  accent: "#58a6ff",
+  totalParams: 19538,
+  desc: "A three-layer feedforward network. Each of the 6 piles is encoded as a 13-dimensional one-hot vector (positions 0–12), concatenated into a 78-dim sparse binary input. The network learns a lookup table from game states to move logits.",
+  nodes: [
+    { id:"input",  x:400, y:60,  w:280, h:52, color:"#1e3a5f", border:"#58a6ff",
+      title:"Input", sub:"78-dim one-hot  [6 piles × 13 values]",
+      info: { label:"Input Layer", dim:"78", shape:"6 × 13 one-hot",
+        about:"Each pile (0–12 coins) is encoded as a length-13 one-hot vector. Pile i contributes a 1 at position pile_value within its 13-dim slice. All other positions are 0. The result is a sparse binary vector where exactly 6 positions (one per pile) are 1.",
+        insight:"Because different pile values are orthogonal — dot product of any two states that differ in any pile is 0 — the model cannot interpolate between states. Two games that differ only in pile 3 having 5 vs 6 coins look completely unrelated to the network. This makes the model a lookup table: it can only generalise to states similar to those it has seen.",
+        stats:[{k:"Input dim",v:"78"},{k:"Nonzeros",v:"6 / 78"},{k:"Encoding",v:"one-hot"},{k:"Piles",v:"6"}] }},
+    { id:"fc1",    x:400, y:170, w:280, h:52, color:"#0d2137", border:"#58a6ff",
+      title:"Linear  78 → 128", sub:"+ ReLU  ·  10,240 weights",
+      drillable: true,
+      info: { label:"Linear Layer 1 + ReLU", dim:"128",
+        about:"A fully-connected linear layer followed by a ReLU activation. Each of the 128 output neurons computes a weighted sum of all 78 inputs, then zeros out negative values (ReLU). This layer is the network's pattern detector: each neuron learns to fire for specific combinations of pile values.",
+        insight:"With 78 one-hot inputs, each neuron's weights can be visualised as a 6×13 grid — how strongly it responds to each possible value of each pile. After training, neurons show noisy patterns: each fires for specific (pile, value) identities rather than periodic structure. This is the lookup-table signature.",
+        weights:{label:"fc1.weight",shape:"[128, 78]",mean_abs:0.143,max_abs:0.82},
+        stats:[{k:"Weights",v:"10,240"},{k:"Biases",v:"128"},{k:"Activation",v:"ReLU"},{k:"Sparsity (ReLU)",v:"~50%"}] }},
+    { id:"fc2",    x:400, y:280, w:280, h:52, color:"#0d2137", border:"#58a6ff",
+      title:"Linear  128 → 64", sub:"+ ReLU  ·  8,192 weights",
+      drillable: true,
+      info: { label:"Linear Layer 2 + ReLU", dim:"64",
+        about:"Compresses 128 activations into 64, forcing the network to combine the single-pile features detected in layer 1 into joint representations. This is where pile interactions should emerge — for instance, detecting that pile A has Grundy value 2 AND pile B has Grundy value 2 (XOR = 0, losing position).",
+        insight:"In practice, because the input is one-hot, each neuron in layer 1 fires for a specific pile-value identity rather than a generalised Grundy class. Layer 2 therefore learns combinations of identities rather than combinations of equivalence classes — a much harder and less compact problem.",
+        weights:{label:"fc2.weight",shape:"[64, 128]",mean_abs:0.11,max_abs:0.6},
+        stats:[{k:"Weights",v:"8,192"},{k:"Biases",v:"64"},{k:"Activation",v:"ReLU"},{k:"Compression",v:"128 → 64"}] }},
+    { id:"head",   x:400, y:390, w:280, h:52, color:"#1a1a2e", border:"#bc8cff",
+      title:"LM Head  64 → 18", sub:"linear · 1,152 weights",
+      info: { label:"LM Head (Output Projection)", dim:"18",
+        about:"A final linear layer with no activation that projects the 64-dim hidden state to 18 logits — one per (pile_index, take_amount) pair. The 18 moves are: pile 0 take 1/2/3, pile 1 take 1/2/3, ..., pile 5 take 1/2/3. Higher logit = stronger preference for that move.",
+        insight:"Illegal moves (taking from an empty pile, or taking more coins than available) are masked to −∞ before softmax at inference time. The model never directly learns that certain moves are illegal; the masking is applied externally. This means the logits for illegal moves are meaningless — the model wasted capacity learning them.",
+        stats:[{k:"Weights",v:"1,152"},{k:"Biases",v:"18"},{k:"Outputs",v:"18 logits"},{k:"Masking",v:"external"}] }},
+    { id:"out",    x:400, y:500, w:280, h:44, color:"#1a1a2e", border:"#3fb950",
+      title:"argmax (pile, take)", sub:"illegal moves masked to −∞",
+      info: { label:"Move Selection", dim:"1",
+        about:"The argmax of the 18 logits (after masking illegal moves) gives the move ID. This is decoded to (pile_index, take_amount). The pile_index is in the SORTED pile space — the model always sees piles in descending order — so it must be translated back to the original pile ordering before the move is applied to the game.",
+        insight:"Sorting piles before encoding is the key preprocessing step that collapses all permutations of the same multiset to a single canonical input. Without sorting, the model sees [5,3,0,0,0,0] and [0,3,0,5,0,0] as completely different inputs (orthogonal one-hot vectors) even though they represent identical games.",
+        stats:[{k:"Output",v:"(pile, take)"},{k:"Decoding",v:"argmax"},{k:"Index space",v:"sorted"}] }},
+  ],
+  edges:[
+    {from:"input",to:"fc1",label:"78"},
+    {from:"fc1",to:"fc2",label:"128"},
+    {from:"fc2",to:"head",label:"64"},
+    {from:"head",to:"out",label:"18 logits"},
+  ]
+},
+
+arch2: {
+  name: "Architecture 2 — Scalar + mod-4 Encoding",
+  accent: "#3fb950",
+  totalParams: 11090,
+  desc: "Same three-layer structure as Arch 1, but with a 12-dimensional input: 6 normalised pile values (pile/12) plus 6 mod-4 Grundy features (pile%4/3). The mod-4 channel hands the network the Grundy equivalence classes directly.",
+  nodes: [
+    { id:"input",  x:400, y:60,  w:280, h:52, color:"#0d2d1a", border:"#3fb950",
+      title:"Input", sub:"12-dim  [6 magnitude + 6 mod-4]",
+      info: { label:"Input Layer", dim:"12",
+        about:"Two concatenated channels per pile. Channel A (indices 0–5): pile_value / 12 — normalised magnitude in [0,1]. Channel B (indices 6–11): (pile_value % 4) / 3 — the Grundy value of each pile, normalised to [0,1]. Channel B encodes which of the four equivalence classes {0,1,2,3} each pile belongs to.",
+        insight:"The key insight: in misère Nim with take-1-2-3, the Grundy value of a pile is pile % 4, and the game is a first-player win iff the XOR of all Grundy values is non-zero. By making (pile%4) an explicit input feature, we give the network the mathematical structure it needs. The mod-4 weights in fc1 are 1.9× stronger than the magnitude weights on average — the network learned that channel B is more informative.",
+        stats:[{k:"Input dim",v:"12"},{k:"Magnitude ch",v:"pile/12"},{k:"Grundy ch",v:"pile%4/3"},{k:"Mean |w| ratio",v:"1.90× mod4"}] }},
+    { id:"fc1",    x:400, y:170, w:280, h:52, color:"#0a2010", border:"#3fb950",
+      title:"Linear  12 → 128", sub:"+ ReLU  ·  1,536 weights",
+      drillable: true,
+      info: { label:"Linear Layer 1 + ReLU", dim:"128",
+        about:"Maps the 12-dim encoded input to 128 hidden units. Because the input includes mod-4 features, neurons in this layer can specialise as Grundy-value detectors: one neuron fires for pile%4=0, another for pile%4=1, etc. The activation plot (row = neuron, column = pile value) shows bright cells at positions {0,4,8,12}, {1,5,9}, {2,6,10}, {3,7,11} for different neurons — the mod-4 equivalence classes.",
+        insight:"The mean absolute weight on the mod-4 input channels is 0.394 vs 0.207 for the magnitude channels — a 1.9× ratio. The network assigned roughly double the importance to the Grundy equivalence class vs the raw pile magnitude. This is the network discovering Sprague-Grundy theory from game outcome data alone.",
+        weights:{label:"fc1.weight",shape:"[128, 12]",mod4_vs_mag:"1.90×",mean_abs_mod4:0.394,mean_abs_mag:0.207},
+        stats:[{k:"Weights",v:"1,536"},{k:"mod-4 weight",v:"0.394 mean |w|"},{k:"mag weight",v:"0.207 mean |w|"},{k:"Ratio",v:"1.90×"}] }},
+    { id:"fc2",    x:400, y:280, w:280, h:52, color:"#0a2010", border:"#3fb950",
+      title:"Linear  128 → 64", sub:"+ ReLU  ·  8,192 weights",
+      info: { label:"Linear Layer 2 + ReLU", dim:"64",
+        about:"With per-pile Grundy values available as layer-1 activations, this layer combines them into a global game assessment. The XOR of multiple 2-bit values requires about 4 linear pieces per bit — approximable with ReLU neurons. Layer 2 is where the model should learn 'if XOR of all Grundy values is 0 → P-position, lose gracefully; if non-zero → N-position, reduce to XOR=0'.",
+        insight:"The Grundy XOR plot shows that after training, the max-logit does not cleanly separate XOR=0 from XOR≠0 positions — there is still scatter. Layer 2 has partially learned the XOR combination but not completely. Increasing hidden width or depth would improve this.",
+        stats:[{k:"Weights",v:"8,192"},{k:"Biases",v:"64"},{k:"Task",v:"approx XOR"},{k:"Activation",v:"ReLU"}] }},
+    { id:"head",   x:400, y:390, w:280, h:52, color:"#1a1a2e", border:"#bc8cff",
+      title:"LM Head  64 → 18", sub:"linear · 1,152 weights",
+      info: { label:"LM Head (Output Projection)", dim:"18",
+        about:"Same structure as Arch 1. Projects 64 hidden units to 18 move logits.",
+        insight:"Because Arch 2's hidden state encodes Grundy values rather than pile-value identities, the LM head generalises better: a model trained on piles 1–8 retains ~85% accuracy on piles 9–12, whereas Arch 1 would fail entirely on unseen values.",
+        stats:[{k:"Weights",v:"1,152"},{k:"Biases",v:"18"},{k:"Outputs",v:"18 logits"}] }},
+    { id:"out",    x:400, y:500, w:280, h:44, color:"#1a1a2e", border:"#3fb950",
+      title:"argmax (pile, take)", sub:"illegal moves masked · index untranslated",
+      info: { label:"Move Selection", dim:"1",
+        about:"Argmax after illegal-move masking. The pile index is in sorted order and is translated back to the original pile position before returning.",
+        stats:[{k:"Output",v:"(pile, take)"},{k:"Params total",v:"11,090"}] }},
+  ],
+  edges:[
+    {from:"input",to:"fc1",label:"12"},
+    {from:"fc1",to:"fc2",label:"128"},
+    {from:"fc2",to:"head",label:"64"},
+    {from:"head",to:"out",label:"18 logits"},
+  ]
+},
+
+arch3: {
+  name: "Architecture 3 — Causal Transformer",
+  accent: "#bc8cff",
+  totalParams: 106530,
+  desc: "A decoder-only transformer. The 6 sorted pile values plus a SEP token form a 7-token sequence. The model predicts the optimal move at the SEP position using causal self-attention across all pile tokens.",
+  nodes: [
+    { id:"tokens",  x:400, y:40,  w:300, h:52, color:"#1a0d28", border:"#bc8cff",
+      title:"Token sequence", sub:"[p0 p1 p2 p3 p4 p5 SEP]  ·  7 tokens",
+      info:{ label:"Input Tokenisation", dim:"7 tokens",
+        about:"The 6 sorted pile values (each 0–12) are mapped to token IDs 0–12. A special SEP token (ID 13) marks the boundary between the state description and the prediction position. The sequence is always exactly 7 tokens, with piles sorted in descending order.",
+        insight:"Sorting piles before tokenisation is essential: the same game state can be represented by up to 720 permutations of 6 values. Without sorting, the model would need 720× as much data to learn pile-order invariance. With sorting, position 0 is always the largest pile — position carries semantic meaning.",
+        stats:[{k:"Seq length",v:"7"},{k:"Vocab size",v:"32"},{k:"Pile tokens",v:"0–12"},{k:"SEP token",v:"13"}] }},
+    { id:"emb",     x:400, y:150, w:300, h:52, color:"#1a0d28", border:"#bc8cff",
+      title:"Embedding", sub:"tok_emb[32×64] + pos_emb[25×64]",
+      info:{ label:"Token + Positional Embeddings", dim:"7 × 64",
+        about:"Each token ID is looked up in a 32×64 embedding table (tok_emb), giving a 64-dimensional dense vector. A positional embedding (pos_emb) is added, giving each position a unique offset. The sum is the transformer's input: a 7×64 matrix where each row is one token's representation.",
+        insight:"The cosine similarity matrix of tok_emb shows two clusters: pile tokens (0–12) cluster together, and move tokens (14–31) form a separate cluster. SEP sits between them. This geometry emerges from training — the model learned that pile values and move tokens inhabit different semantic regions. Pile token norms: mean 4.89. Move token norms: mean 5.56.",
+        weights:{pile_emb_norm:4.887,move_emb_norm:5.558},
+        stats:[{k:"tok_emb",v:"32 × 64 = 2,048"},{k:"pos_emb",v:"25 × 64 = 1,600"},{k:"Pile emb norm",v:"4.89"},{k:"Move emb norm",v:"5.56"}] }},
+    { id:"block0",  x:400, y:260, w:300, h:60, color:"#120a1f", border:"#9d6ee0",
+      title:"Transformer Block 1", sub:"LayerNorm → CausalAttn → FFN  ·  2 blocks total",
+      drillable: true,
+      info:{ label:"Transformer Block (× 2)", dim:"7 × 64",
+        about:"Each block has the same structure: LayerNorm → multi-head causal self-attention → residual add → LayerNorm → FFN (64→256→64, GELU) → residual add. The causal mask prevents each position from attending to future positions.",
+        insight:"For a 7-token state-only sequence (no move history), the causal mask means: pile position 0 attends only to itself; pile position 1 attends to positions 0–1; SEP (position 6) attends to all 6 pile tokens and itself. The SEP token becomes a natural aggregator — its attention weights show it pooling information from all piles before the LM head reads from it.",
+        stats:[{k:"Blocks",v:"2"},{k:"d_model",v:"64"},{k:"Heads",v:"4"},{k:"FFN dim",v:"256"},{k:"Params/block",v:"~33k"}] }},
+    { id:"block1",  x:400, y:335, w:300, h:36, color:"#120a1f", border:"#7a4eb8",
+      title:"Transformer Block 2", sub:"same structure · deeper composition",
+      drillable: true,
+      info:{ label:"Transformer Block 2", dim:"7 × 64",
+        about:"The second block refines the representations produced by block 1. By this point, the SEP token's representation already incorporates attended information from all pile tokens. Block 2 can compose higher-order interactions — for instance, 'pile 0 has Grundy 3 AND pile 1 has Grundy 3, so XOR=0' — that require two rounds of attention to express.",
+        insight:"The attention pattern in block 2, head 1 (visible in the diagnostic plot) shows the SEP token attending most strongly to itself (~0.45 weight) and distributing remaining attention across pile tokens. This is the SEP token performing a weighted pooling of all pile representations — structurally similar to how [CLS] works in BERT.",
+        stats:[{k:"Block",v:"2 of 2"},{k:"QKV weight",v:"[192, 64]"},{k:"Proj weight",v:"[64, 64]"},{k:"FFN",v:"64→256→64"}] }},
+    { id:"lnf",     x:400, y:388, w:300, h:40, color:"#0d0d1a", border:"#6a5f8c",
+      title:"Final LayerNorm", sub:"normalise before LM head",
+      info:{ label:"Final LayerNorm", dim:"7 × 64",
+        about:"Applies layer normalisation to the output of the last transformer block. This scales activations to have zero mean and unit variance per position, ensuring stable gradients into the LM head.",
+        stats:[{k:"Params",v:"128 (γ + β)"},{k:"Shape",v:"[64]"}] }},
+    { id:"head",    x:400, y:445, w:300, h:52, color:"#1a1a2e", border:"#bc8cff",
+      title:"LM Head  64 → 32", sub:"weight-tied to tok_emb · read at SEP",
+      info:{ label:"LM Head — Weight Tied", dim:"32 logits",
+        about:"A linear projection from 64 to 32 (vocab size). The weight matrix is TIED to tok_emb — the same matrix is used for both embedding tokens and projecting to logits. Weight tying reduces parameters and encourages a consistent geometric relationship: a token that is easy to embed is also easy to predict.",
+        insight:"Only the 18 move-token logits (indices 14–31) matter for inference. The logits are read from the SEP position (index 6), which has attended to all pile tokens. The pile-value positions' logits are discarded. This is exactly the [CLS]-token pattern used in classification transformers.",
+        stats:[{k:"Weight",v:"tied to tok_emb"},{k:"Read at",v:"SEP position"},{k:"Useful logits",v:"18 of 32"},{k:"Params saved",v:"2,048 (tying)"}] }},
+    { id:"out",     x:400, y:555, w:300, h:44, color:"#1a1a2e", border:"#3fb950",
+      title:"argmax (pile, take)", sub:"move logits [14..31] · mask + translate",
+      info:{ label:"Move Selection", dim:"1",
+        about:"Slice logits[14:32] (the 18 move tokens), mask illegal moves to −∞, take argmax, decode to (pile_index, take_amount). Translate sorted pile_index back to the original pile order.",
+        stats:[{k:"Output",v:"(pile, take)"},{k:"Total params",v:"106,530"},{k:"Seq length",v:"7 (fixed)"}] }},
+  ],
+  edges:[
+    {from:"tokens",to:"emb",   label:"7 token IDs"},
+    {from:"emb",   to:"block0",label:"7 × 64"},
+    {from:"block0",to:"block1",label:"7 × 64"},
+    {from:"block1",to:"lnf",   label:"7 × 64"},
+    {from:"lnf",   to:"head",  label:"read SEP pos"},
+    {from:"head",  to:"out",   label:"32 logits"},
+  ]
+},
+
+}; // end ARCHS
+
+// ════════════════════════════════════════════════════════
+// DRILL-DOWN DEFINITIONS
+// ════════════════════════════════════════════════════════
+
+const DRILLS = {
+  arch1_fc1: {
+    title: "Layer 1: Linear(78→128) + ReLU — inside view",
+    render: drawLinearDrill.bind(null, {
+      label:"fc1", inputDim:78, outputDim:128, activation:"ReLU",
+      inputDesc:"78-dim one-hot\n6 piles × 13 values",
+      outputDesc:"128 neuron\nactivations",
+      highlight:"Each output neuron computes a dot product with\nthe sparse input — most weights multiply 0.\nOnly the 6 active input positions matter.",
+      accentColor:"#58a6ff"
+    })
+  },
+  arch1_fc2: {
+    title: "Layer 2: Linear(128→64) + ReLU — inside view",
+    render: drawLinearDrill.bind(null, {
+      label:"fc2", inputDim:128, outputDim:64, activation:"ReLU",
+      inputDesc:"128 activations\nfrom layer 1",
+      outputDesc:"64 compressed\nrepresentations",
+      highlight:"This layer must combine single-pile features\ninto joint pile interactions (e.g. XOR).\nThe bottleneck forces compression.",
+      accentColor:"#58a6ff"
+    })
+  },
+  arch2_fc1: {
+    title: "Layer 1: Linear(12→128) + ReLU — Grundy detection",
+    render: drawGrundyDrill
+  },
+  arch3_block0: {
+    title: "Transformer Block 1 — internal structure",
+    render: drawTransformerBlockDrill.bind(null, 0)
+  },
+  arch3_block1: {
+    title: "Transformer Block 2 — internal structure",
+    render: drawTransformerBlockDrill.bind(null, 1)
+  },
+};
+
+// ════════════════════════════════════════════════════════
+// SVG GRAPH RENDERING
+// ════════════════════════════════════════════════════════
+
+let currentArch = "arch1";
+let selectedNode = null;
+let panX = 0, panY = 0, scale = 1;
+let isPanning = false, panStart = {x:0,y:0};
+
+const svg = document.getElementById("graph");
+
+function getViewBox() {
+  const r = svg.getBoundingClientRect();
+  return {w: r.width, h: r.height};
+}
+
+function renderArch(archKey) {
+  currentArch = archKey;
+  selectedNode = null;
+  const arch = ARCHS[archKey];
+
+  // Auto-center
+  const {w, h} = getViewBox();
+  // All arches are ~600h, centered at x=400
+  panX = w/2 - 400;
+  panY = h/2 - 300;
+  scale = Math.min(1, h / 680);
+
+  drawGraph();
+  selectNode(arch.nodes[0]);
+}
+
+function drawGraph() {
+  const arch = ARCHS[currentArch];
+  svg.innerHTML = "";
+
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("id","canvas-g");
+  g.setAttribute("transform",`translate(${panX},${panY}) scale(${scale})`);
+  svg.appendChild(g);
+
+  // Defs — arrow marker
+  const defs = svgEl("defs");
+  const marker = svgEl("marker",{id:"arrow",markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto"});
+  const arrowPath = svgEl("path",{d:"M0,0 L0,6 L8,3 z",fill:"#2d3f52"});
+  marker.appendChild(arrowPath); defs.appendChild(marker); g.appendChild(defs);
+
+  // Edges
+  arch.edges.forEach(e => drawEdge(g, arch, e));
+
+  // Nodes
+  arch.nodes.forEach(n => drawNode(g, arch, n));
+}
+
+function drawNode(g, arch, node) {
+  const group = svgEl("g",{class:"node-group"+(node.id===selectedNode?.id?" selected":""),id:"node-"+node.id});
+  group.style.cursor = node.drillable ? "zoom-in" : "pointer";
+
+  const rect = svgEl("rect",{
+    class:"node-box",
+    x:node.x - node.w/2, y:node.y - node.h/2,
+    width:node.w, height:node.h,
+    fill:node.color, stroke:node.border,
+    rx:7,ry:7
+  });
+  group.appendChild(rect);
+
+  // Drill-in badge
+  if (node.drillable) {
+    const badge = svgEl("rect",{x:node.x+node.w/2-34,y:node.y-node.h/2+4,width:30,height:14,fill:node.border+"33",rx:3});
+    const badgeTxt = svgEl("text",{x:node.x+node.w/2-19,y:node.y-node.h/2+11,fill:node.border,"font-size":8,"font-family":"JetBrains Mono",opacity:.9,"text-anchor":"middle","dominant-baseline":"middle"});
+    badgeTxt.textContent = "zoom";
+    group.appendChild(badge); group.appendChild(badgeTxt);
+  }
+
+  // Data-flow animation line
+  const flow = svgEl("line",{
+    x1:node.x-node.w/2+10, y1:node.y,
+    x2:node.x+node.w/2-10, y2:node.y,
+    stroke:node.border, "stroke-width":"1", opacity:".2",
+    class:"data-flow"
+  });
+  group.appendChild(flow);
+
+  const title = svgEl("text",{class:"node-title",x:node.x,y:node.h>46?node.y-8:node.y});
+  title.textContent = node.title;
+  group.appendChild(title);
+
+  if (node.sub) {
+    const sub = svgEl("text",{class:"node-subtitle",x:node.x,y:node.y+10});
+    sub.textContent = node.sub;
+    group.appendChild(sub);
+  }
+
+  group.addEventListener("click",() => {
+    if (node.drillable) {
+      openDrill(node);
+    } else {
+      selectNode(node);
+    }
+  });
+  group.addEventListener("mouseenter",() => selectNode(node, true));
+  g.appendChild(group);
+}
+
+function drawEdge(g, arch, edge) {
+  const from = arch.nodes.find(n=>n.id===edge.from);
+  const to   = arch.nodes.find(n=>n.id===edge.to);
+  if (!from||!to) return;
+
+  const x1=from.x, y1=from.y+from.h/2;
+  const x2=to.x,   y2=to.y-to.h/2;
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+
+  const path = svgEl("path",{
+    class:"edge",
+    d:`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`,
+    stroke:"#2d3f52",
+    "marker-end":"url(#arrow)"
+  });
+  g.appendChild(path);
+
+  if (edge.label) {
+    const lbl = svgEl("text",{class:"edge-label",x:mx+8,y:my});
+    lbl.textContent = edge.label;
+    g.appendChild(lbl);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// INFO PANEL
+// ════════════════════════════════════════════════════════
+
+function selectNode(node, hover=false) {
+  if (!hover) selectedNode = node;
+  // Re-highlight
+  svg.querySelectorAll(".node-group").forEach(g => g.classList.remove("selected"));
+  const el = svg.getElementById("node-"+node.id);
+  if (el) el.classList.add("selected");
+
+  const info = node.info;
+  document.getElementById("panel-title").textContent = info.label;
+  document.getElementById("panel-subtitle").textContent = info.dim ? `output dimension: ${info.dim}` : "";
+
+  const body = document.getElementById("panel-body");
+  const arch = ARCHS[currentArch];
+  body.innerHTML = "";
+
+  // About section
+  addSection(body, "about this layer", `<p>${info.about}</p>`);
+
+  // Insight
+  if (info.insight) {
+    addSection(body, "pedagogical insight", `<p style="color:var(--yellow)">${info.insight}</p>`);
+  }
+
+  // Weight stats
+  if (info.weights) {
+    const w = info.weights;
+    let html = `<div class="weight-bar-wrap">`;
+    if (w.mean_abs !== undefined) {
+      html += weightBar("mean |w|", w.mean_abs, 0.5, arch.accent);
+    }
+    if (w.mean_abs_mod4 !== undefined) {
+      html += weightBar("mod-4 ch", w.mean_abs_mod4, 0.5, "#3fb950");
+      html += weightBar("magnitude", w.mean_abs_mag, 0.5, "#58a6ff");
+    }
+    if (w.pile_emb_norm !== undefined) {
+      html += weightBar("pile emb", w.pile_emb_norm/8, 1, "#bc8cff");
+      html += weightBar("move emb", w.move_emb_norm/8, 1, "#f0883e");
+    }
+    html += `</div>`;
+    if (w.shape) html += `<p style="margin-top:6px;font-size:11px;color:var(--muted)">shape: <code>${w.shape}</code></p>`;
+    addSection(body, "weight statistics", html);
+  }
+
+  // Stats grid
+  if (info.stats) {
+    let html = `<div class="stat-grid">`;
+    info.stats.forEach(s => {
+      const col = s.k.includes("acc") ? "var(--green)" :
+                  s.k.includes("weight") ? "var(--cyan)" :
+                  s.k.includes("Params") ? "var(--orange)" : "var(--text)";
+      html += `<div class="stat"><div class="sk">${s.k}</div><div class="sv" style="color:${col}">${s.v}</div></div>`;
+    });
+    html += `</div>`;
+    addSection(body, "parameters", html);
+  }
+
+  // Drill hint
+  if (node.drillable) {
+    addSection(body, "interactive", `<p style="color:var(--purple)">Click this node to zoom in and explore its internal structure in detail.</p>`);
+  }
+}
+
+function addSection(parent, title, innerHtml) {
+  const div = document.createElement("div");
+  div.className = "info-section";
+  div.innerHTML = `<div class="sec-title">${title}</div>${innerHtml}`;
+  parent.appendChild(div);
+}
+
+function weightBar(label, val, max, color) {
+  const pct = Math.min(100, (val/max)*100).toFixed(0);
+  return `<div class="weight-bar-row">
+    <span class="wlabel">${label}</span>
+    <div class="weight-bar-track"><div class="weight-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="wval">${typeof val==="number"&&val<10?val.toFixed(3):val}</span>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+// DRILL-DOWN PANELS
+// ════════════════════════════════════════════════════════
+
+function openDrill(node) {
+  const key = currentArch + "_" + node.id;
+  const drill = DRILLS[key];
+  if (!drill) return;
+  document.getElementById("dd-title").textContent = drill.title;
+  const ddSvg = document.getElementById("dd-svg");
+  ddSvg.innerHTML = "";
+  drill.render(ddSvg);
+  document.getElementById("drilldown").classList.add("open");
+}
+
+function closeDrill() {
+  document.getElementById("drilldown").classList.remove("open");
+}
+
+function drawLinearDrill(cfg, ddSvg) {
+  const W=860, H=380;
+  ddSvg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  ddSvg.style.background="var(--bg2)";
+  ddSvg.style.borderRadius="8px";
+
+  const n_in  = Math.min(cfg.inputDim,  12);
+  const n_out = Math.min(cfg.outputDim, 10);
+  const inX=140, outX=720;
+  const inSpan=280, outSpan=280;
+
+  // title
+  txt(ddSvg, 430, 28, cfg.label + "  ·  "+cfg.inputDim+"→"+cfg.outputDim, 13, "#fff", 700, "middle");
+  txt(ddSvg, 430, 48, cfg.highlight.split("\n").join("  "), 10, "#4a5568", 400, "middle");
+
+  // input neurons
+  txt(ddSvg, inX, 70, "INPUT", 9, "#4a5568", 400, "middle");
+  txt(ddSvg, inX, 82, cfg.inputDesc, 9, "#4a5568", 400, "middle");
+  for(let i=0;i<n_in;i++) {
+    const y = 105 + i*(inSpan/n_in);
+    circle(ddSvg, inX, y, 7, cfg.accentColor+"44", cfg.accentColor);
+    if (i===0) txt(ddSvg, inX-20, y+1, "x₀", 9, cfg.accentColor, 400, "end");
+    if (i===n_in-1) txt(ddSvg, inX-20, y+1, `x${cfg.inputDim-1}`, 9, cfg.accentColor+"88", 400, "end");
+  }
+  txt(ddSvg, inX, 105+inSpan+14, `(${cfg.inputDim} inputs)`, 9, "#4a5568", 400, "middle");
+
+  // output neurons
+  txt(ddSvg, outX, 70, "OUTPUT", 9, "#4a5568", 400, "middle");
+  txt(ddSvg, outX, 82, cfg.outputDesc, 9, "#4a5568", 400, "middle");
+  for(let j=0;j<n_out;j++) {
+    const y = 105 + j*(outSpan/n_out);
+    circle(ddSvg, outX, y, 7, "#bc8cff44", "#bc8cff");
+    if (j===0) txt(ddSvg, outX+16, y+1, "y₀", 9, "#bc8cff", 400, "start");
+    if (j===n_out-1) txt(ddSvg, outX+16, y+1, `y${cfg.outputDim-1}`, 9, "#bc8cff88", 400, "start");
+  }
+  txt(ddSvg, outX, 105+outSpan+14, `(${cfg.outputDim} outputs)`, 9, "#4a5568", 400, "middle");
+
+  // weight connections (sample)
+  for(let i=0;i<n_in;i++) {
+    for(let j=0;j<n_out;j++) {
+      if (Math.random()>0.35) continue;
+      const y1=105+i*(inSpan/n_in), y2=105+j*(outSpan/n_out);
+      const alpha=(0.04+Math.random()*0.12).toFixed(2);
+      const l = document.createElementNS("http://www.w3.org/2000/svg","line");
+      l.setAttribute("x1",inX+7); l.setAttribute("y1",y1);
+      l.setAttribute("x2",outX-7); l.setAttribute("y2",y2);
+      l.setAttribute("stroke","#58a6ff"); l.setAttribute("stroke-width","0.8");
+      l.setAttribute("opacity",alpha);
+      ddSvg.appendChild(l);
+    }
+  }
+
+  // formula
+  const fmx=430, fmy=340;
+  rect(ddSvg, fmx-180, fmy-18, 360, 32, "#0d1117", "#1e2d3d");
+  txt(ddSvg, fmx, fmy, `y = ${cfg.activation}(W · x + b)   W: [${cfg.outputDim}, ${cfg.inputDim}]   b: [${cfg.outputDim}]`, 11, "#c9d1d9", 400, "middle");
+
+  // activation box
+  const acx=430, acy=300;
+  rect(ddSvg, acx-60, acy-14, 120, 26, "#1a2535", "#3fb950");
+  txt(ddSvg, acx, acy, cfg.activation+" activation", 10, "#3fb950", 600, "middle");
+}
+
+function drawGrundyDrill(ddSvg) {
+  const W=860, H=400;
+  ddSvg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  ddSvg.style.background="var(--bg2)"; ddSvg.style.borderRadius="8px";
+
+  txt(ddSvg, 430, 28, "fc1: Linear(12→128) + ReLU  ·  Grundy equivalence class detection", 13, "#fff", 700, "middle");
+
+  // Show 12 input channels: 6 magnitude + 6 mod4
+  const chW=56, chH=36, startX=80, chY=65;
+  const magColor="#58a6ff", mod4Color="#3fb950";
+
+  txt(ddSvg, startX+3*chW, chY-14, "magnitude channels  (pile / 12)", 9, magColor, 400, "middle");
+  txt(ddSvg, startX+9*chW, chY-14, "mod-4 Grundy channels  (pile % 4 / 3)", 9, mod4Color, 400, "middle");
+
+  for(let i=0;i<6;i++) {
+    const x=startX+i*chW, color=magColor;
+    rect(ddSvg, x, chY, chW-4, chH, color+"22", color+"88");
+    txt(ddSvg, x+chW/2-2, chY+12, `p${i}`, 10, color, 600, "middle");
+    txt(ddSvg, x+chW/2-2, chY+24, "/12", 8, color+"88", 400, "middle");
+  }
+  for(let i=0;i<6;i++) {
+    const x=startX+(i+6)*chW, color=mod4Color;
+    rect(ddSvg, x, chY, chW-4, chH, color+"22", color+"88");
+    txt(ddSvg, x+chW/2-2, chY+12, `p${i}`, 10, color, 600, "middle");
+    txt(ddSvg, x+chW/2-2, chY+24, "%4/3", 8, color+"88", 400, "middle");
+  }
+
+  // Weight ratio annotation
+  rect(ddSvg, 580, 58, 250, 48, "#0d1117", "#3fb950");
+  txt(ddSvg, 705, 72, "mod-4 channels are 1.9× more", 10, "#3fb950", 600, "middle");
+  txt(ddSvg, 705, 86, "heavily weighted than magnitude", 10, "#3fb950", 400, "middle");
+  txt(ddSvg, 705, 100, "mean |w|: 0.394 vs 0.207", 9, "#4a5568", 400, "middle");
+
+  // Show 4 Grundy classes and which pile values map to each
+  const classY = 140, classColors=["#f85149","#f0883e","#d29922","#3fb950"];
+  const classLabels=["G=0  {0,4,8,12}","G=1  {1,5,9}","G=2  {2,6,10}","G=3  {3,7,11}"];
+  txt(ddSvg, 430, classY-12, "The 4 Grundy equivalence classes  (pile % 4)", 11, "#c9d1d9", 600, "middle");
+  for(let c=0;c<4;c++) {
+    const cx=100+c*200;
+    rect(ddSvg, cx-85, classY, 170, 40, classColors[c]+"22", classColors[c]+"88");
+    txt(ddSvg, cx, classY+14, classLabels[c].split(" ")[0], 13, classColors[c], 700, "middle");
+    txt(ddSvg, cx, classY+30, classLabels[c].split(" ")[1], 10, classColors[c]+"aa", 400, "middle");
+  }
+
+  // Neurons responding to each class
+  const neuronY=210;
+  txt(ddSvg, 430, neuronY-10, "Sample layer-1 neurons (post-ReLU activation pattern per pile value 0–12)", 10, "#4a5568", 400, "middle");
+  const exNeurons=[
+    {label:"neuron 3", pattern:[1,0,0,0,1,0,0,0,1,0,0,0,1], color:"#f85149"},
+    {label:"neuron 4", pattern:[0,1,0,0,0,1,0,0,0,1,0,0,0], color:"#f0883e"},
+    {label:"neuron 9", pattern:[0,0,1,0,0,0,1,0,0,0,1,0,0], color:"#d29922"},
+    {label:"neuron 14",pattern:[0,0,0,1,0,0,0,1,0,0,0,1,0], color:"#3fb950"},
+  ];
+  exNeurons.forEach((n,ni)=>{
+    const rowY=neuronY+ni*42;
+    txt(ddSvg, 62, rowY+14, n.label, 9, n.color, 400, "end");
+    n.pattern.forEach((v,i)=>{
+      const cx=80+i*58, cy=rowY+10;
+      rect(ddSvg, cx-22, cy-10, 44, 20, v?n.color+"44":"#0d1117", v?n.color:"#1e2d3d");
+      txt(ddSvg, cx, cy, i.toString(), 9, v?n.color:"#4a5568", v?700:400, "middle");
+    });
+    txt(ddSvg, 790, rowY+14, `fires at pile%4=${ni}`, 9, n.color, 400, "start");
+  });
+
+  txt(ddSvg, 430, 378, "The mod-4 channel encodes which equivalence class each pile belongs to → neurons can specialise as Grundy detectors", 10, "#4a5568", 400, "middle");
+}
+
+function drawTransformerBlockDrill(blockIdx, ddSvg) {
+  const W=860, H=440;
+  ddSvg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  ddSvg.style.background="var(--bg2)"; ddSvg.style.borderRadius="8px";
+
+  txt(ddSvg, 430, 28, `Transformer Block ${blockIdx+1}  ·  Pre-norm architecture  ·  d_model=64, 4 heads`, 13, "#fff", 700, "middle");
+
+  const cx=430, boxW=560, boxH=50, startY=55, gap=18;
+  const steps=[
+    {label:"LayerNorm", sub:"normalise before attention", color:"#4a5568", border:"#2d3f52",
+     desc:"Pre-normalisation: applied BEFORE attention rather than after. This stabilises training and makes the model less sensitive to learning rate. γ and β are learned per-dimension.",
+     params:"128 params (γ+β)"},
+    {label:"Causal Self-Attention", sub:"4 heads · head_dim=16 · QKV=[192,64]", color:"#1a0d28", border:"#bc8cff",
+     desc:"Multi-head attention with a causal mask. Q, K, V are computed by a single linear projection [192,64] then split into 4 heads of dim 16. Each head independently computes attention scores Q·Kᵀ/√16, applies the causal mask (upper triangle = −∞), softmax, then V-weighted sum. Heads are concatenated and projected back to 64-dim.",
+     params:"QKV [192,64] + proj [64,64]"},
+    {label:"Residual Add", sub:"x = x + attn(LayerNorm(x))", color:"#0d2010", border:"#3fb950",
+     desc:"The attention output is added back to the input (residual connection). This creates a gradient highway that allows learning to happen in early layers without vanishing gradients. The model can choose to use or ignore attention output.",
+     params:"0 params"},
+    {label:"LayerNorm", sub:"normalise before FFN", color:"#4a5568", border:"#2d3f52",
+     desc:"Second pre-normalisation before the feed-forward network.",
+     params:"128 params (γ+β)"},
+    {label:"FFN: Linear(64→256)→GELU→Linear(256→64)", sub:"per-position transformation · 4× expansion", color:"#1a1a2e", border:"#f0883e",
+     desc:"A two-layer MLP applied independently to each position. The 4× expansion (64→256) provides capacity for non-linear functions — the XOR-like game logic can be approximated here. GELU is a smooth activation used in modern transformers (smoother than ReLU, slightly better empirically).",
+     params:"64×256 + 256 + 256×64 + 64 = 33,024"},
+    {label:"Residual Add", sub:"x = x + ffn(LayerNorm(x))", color:"#0d2010", border:"#3fb950",
+     desc:"Second residual connection. The combination of two residuals means the model can bypass both attention and FFN if the identity transform is optimal — important early in training.",
+     params:"0 params"},
+  ];
+
+  let y=startY;
+  steps.forEach((s,i)=>{
+    const bY=y;
+    rect(ddSvg, cx-boxW/2, bY, boxW, boxH, s.color, s.border);
+    txt(ddSvg, cx, bY+boxH/2-7, s.label, 11, "#fff", 700, "middle");
+    txt(ddSvg, cx, bY+boxH/2+9, s.sub, 9, "#6a7f99", 400, "middle");
+    // side annotation
+    txt(ddSvg, cx+boxW/2+10, bY+boxH/2, s.params, 8, "#4a5568", 400, "start");
+
+    // Hover tooltip logic replaced with inline annotation below each block
+    if (i<steps.length-1) {
+      // arrow
+      const arrY=bY+boxH;
+      const ln=svgEl("line",{x1:cx,y1:arrY,x2:cx,y2:arrY+gap-2,stroke:"#2d3f52","stroke-width":"1.5"});
+      ddSvg.appendChild(ln);
+      // tensor shape label
+      txt(ddSvg, cx+6, arrY+gap/2, "7×64", 8, "#2d3f52", 400, "start");
+    }
+    y += boxH + gap;
+  });
+
+  // Causal mask visualisation — small
+  const maskX=730, maskY=100, cellSz=12, seqLen=7;
+  txt(ddSvg, maskX+(seqLen*cellSz)/2, maskY-10, "causal mask", 9, "#4a5568", 400, "middle");
+  const tokLabels=["p0","p1","p2","p3","p4","p5","SEP"];
+  for(let r=0;r<seqLen;r++) for(let c=0;c<seqLen;c++){
+    const allowed=c<=r;
+    rect(ddSvg, maskX+c*cellSz, maskY+r*cellSz, cellSz-1, cellSz-1,
+      allowed?"#bc8cff33":"#f8514922", allowed?"#bc8cff55":"#f8514933");
+  }
+  txt(ddSvg, maskX-2, maskY+seqLen*cellSz+10, "SEP attends to all piles →", 8, "#bc8cff88", 400, "start");
+
+  // Total params for this block
+  rect(ddSvg, 0, H-28, W, 28, "#0d1117", "none");
+  txt(ddSvg, 430, H-12, `Block ${blockIdx+1} total parameters: ~33,000  ·  Both blocks: ~66,000  ·  Model total: 106,530`, 10, "#4a5568", 400, "middle");
+}
+
+// ════════════════════════════════════════════════════════
+// PAN & ZOOM
+// ════════════════════════════════════════════════════════
+
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.1 : 0.91;
+  const r = svg.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  panX = mx - (mx-panX)*delta;
+  panY = my - (my-panY)*delta;
+  scale *= delta;
+  scale = Math.max(0.3, Math.min(3, scale));
+  drawGraph();
+}, {passive:false});
+
+svg.addEventListener("mousedown", e => {
+  if (e.target === svg || e.target.tagName==="g") {
+    isPanning=true; panStart={x:e.clientX-panX, y:e.clientY-panY};
+  }
+});
+document.addEventListener("mousemove", e => {
+  if (!isPanning) return;
+  panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
+  drawGraph();
+});
+document.addEventListener("mouseup",()=>{ isPanning=false; });
+
+// ════════════════════════════════════════════════════════
+// SVG HELPERS
+// ════════════════════════════════════════════════════════
+
+function svgEl(tag, attrs={}) {
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+function txt(parent, x, y, content, size=12, fill="#c9d1d9", weight=400, anchor="start") {
+  const lines=content.split("\n");
+  lines.forEach((line,i)=>{
+    const t=svgEl("text",{x,y:y+i*size*1.4,"font-size":size,"font-family":"JetBrains Mono",fill,
+      "font-weight":weight,"text-anchor":anchor,"dominant-baseline":"middle"});
+    t.textContent=line;
+    parent.appendChild(t);
+  });
+}
+function rect(parent, x, y, w, h, fill, stroke) {
+  const r=svgEl("rect",{x,y,width:w,height:h,fill,stroke,"stroke-width":"1",rx:"5",ry:"5"});
+  parent.appendChild(r); return r;
+}
+function circle(parent, cx, cy, r, fill, stroke) {
+  const c=svgEl("circle",{cx,cy,r,fill,stroke,"stroke-width":"1"});
+  parent.appendChild(c); return c;
+}
+
+// ════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    tab.classList.add("active");
+    closeDrill();
+    renderArch(tab.dataset.arch);
+  });
+});
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+
+window.addEventListener("load",()=>{
+  setTimeout(()=>renderArch("arch1"), 50);
+});
+</script>
+</body>
+</html>

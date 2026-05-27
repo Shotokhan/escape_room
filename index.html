@@ -25,6 +25,10 @@ h1{font-size:22px;font-weight:600;color:var(--accent);letter-spacing:.06em;margi
 .card.arena:hover{border-color:var(--purple)}
 .card.arena .card-title{color:var(--purple)}
 .badge.arena-badge{border-color:var(--purple);color:var(--purple)}
+.card.neural{border-color:var(--border)}
+.card.neural:hover{border-color:var(--cyan)}
+.card.neural .card-title{color:var(--cyan)}
+.badge.neural-badge{border-color:var(--cyan);color:var(--cyan)}
 .card-desc{font-size:12px;color:var(--muted);line-height:1.6}
 footer{margin-top:2.5rem;font-size:11px;color:var(--muted)}
 footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)}
@@ -62,6 +66,13 @@ footer a:hover{color:var(--accent)}
       <span class="badge arena-badge">multi-agent · pathfinding · Python</span>
     </div>
     <p class="card-desc">Knight-move maze escape. Write a Python agent that navigates as a chess knight, avoids or eliminates rivals, and reaches the exit first. Pit multiple agents against each other — and against the bots.</p>
+  </a>
+  <a class="card neural" href="./neural_trap_room/">
+    <div class="card-header">
+      <span class="card-title">⬡ Neural Trap Room — Deep Learning</span>
+      <span class="badge neural-badge">neural networks · transformers · Python</span>
+    </div>
+    <p class="card-desc">Three neural architectures learn to play misère Nim from game data. Explore how a one-hot lookup table, a Grundy-aware scalar network, and a causal transformer each discover game theory from scratch — and where they fail.</p>
   </a>
 </div>
 <footer>
